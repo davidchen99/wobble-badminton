@@ -8,6 +8,11 @@
 ## 给 Codex / Kimi 的第一条指令
 请先完整阅读根目录 `AGENTS.md`，再阅读 `docs/` 中所有规格文档。不要直接制作完整三关。先按照 `MVP_PLAN.md` 和 `TASKS.md` 完成 Vertical Slice。每完成一个可运行里程碑，运行检查、记录结果、更新 TASKS.md，再继续下一步。
 
+## 快速开始（无需命令行）
+双击桌面上的 **Wobble Badminton** 图标（或项目根目录的 `启动游戏.bat`）：自动启动服务器并打开浏览器。关闭弹出的黑色控制台窗口即退出游戏。
+
+> 桌面图标由 `make_shortcut.ps1` 生成；若快捷方式丢失可重新运行该脚本（会同时重新生成 `icon.ico`）。
+
 ## 文档
 - `AGENTS.md` — AI 开发规则与最高原则
 - `docs/PRD.md` — 产品需求

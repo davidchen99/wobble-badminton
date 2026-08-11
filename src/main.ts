@@ -2,6 +2,7 @@ import { CameraManager } from './camera/CameraManager';
 import { GestureDetector, type SwingEvent } from './camera/GestureDetector';
 import { HandTracker, type TrackedHand } from './camera/HandTracker';
 import { AIController } from './ai/AIController';
+import { SoundManager } from './audio/SoundManager';
 import { Game } from './game/Game';
 import { RallyManager } from './game/rally';
 import { AI_HOME, PLAYER_HOME } from './game/world';
@@ -14,6 +15,8 @@ const DETECT_INTERVAL_MS = 33;
 /** 挥拍速度阈值滑杆等调试功能通过 ?debug=0 可关（生产模式） */
 const DEBUG_ENABLED = new URLSearchParams(location.search).get('debug') !== '0';
 
+type Flow = 'menu' | 'playing' | 'paused';
+
 async function bootstrap(): Promise<void> {
   const app = document.getElementById('app');
   if (!app) throw new Error('找不到 #app 容器');
@@ -24,6 +27,7 @@ async function bootstrap(): Promise<void> {
 
   const gesture = new GestureDetector();
   const debug = DEBUG_ENABLED ? new DebugPanel(gesture) : null;
+  const sound = new SoundManager();
   const playerController = new PlayerController(game.world.player);
   const rally = new RallyManager(game.world.shuttle, {
     player: { x: PLAYER_HOME.x, y: PLAYER_HOME.y, z: PLAYER_HOME.z },
@@ -43,21 +47,57 @@ async function bootstrap(): Promise<void> {
     },
   ]);
 
-  // 挥拍触球瞬间 → 尝试击球（球在辅助窗口内才成立）
-  playerController.onStrike = () => {
-    rally.tryHit('player');
-  };
+  let flow: Flow = 'menu';
 
-  // 判分提示（M6 换成正式计分板）
-  let messageTimer: ReturnType<typeof setTimeout> | null = null;
+  // ---- 击球反馈：声音 + 镜头冲击 + 球闪 ----
+  let shuttleFlash = 0;
+  const onHit = (speed: number): void => {
+    sound.hit(speed);
+    game.addShake(Math.min(0.18, 0.06 + speed * 0.02));
+    shuttleFlash = 1;
+  };
+  playerController.onStrike = (_dir, speed) => {
+    if (flow !== 'playing') return;
+    if (rally.tryHit('player')) onHit(speed);
+    else sound.whiff();
+  };
+  aiController.onResolve = (hit) => {
+    if (hit && flow === 'playing') sound.hit(1.6);
+  };
   rally.onPoint = (scorer, scores) => {
-    hud.showMessage(
-      `${scorer === 'player' ? '玩家' : 'AI'} 得分！  ${scores.player} : ${scores.ai}`,
-    );
-    if (messageTimer) clearTimeout(messageTimer);
-    messageTimer = setTimeout(() => hud.clearMessage(), 1200);
+    hud.setScore(scores.player, scores.ai);
+    sound.point(scorer);
   };
 
+  // ---- 开始 / 暂停 / 重开 ----
+  const startGame = (): void => {
+    sound.ensure(); // AudioContext 必须在用户手势里创建
+    flow = 'playing';
+    hud.clearMessage();
+  };
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (flow === 'menu') startGame();
+      else if (flow === 'playing') {
+        flow = 'paused';
+        hud.showMessage('已暂停\n空格 继续 · R 重开');
+      } else {
+        flow = 'playing';
+        hud.clearMessage();
+      }
+    } else if (e.code === 'KeyR' && flow !== 'menu') {
+      rally.reset();
+      hud.setScore(0, 0);
+      flow = 'playing';
+      hud.clearMessage();
+    }
+  });
+  window.addEventListener('pointerdown', () => {
+    if (flow === 'menu') startGame();
+  });
+
+  // ---- 摄像头与追踪 ----
   const camera = new CameraManager();
   hud.showMessage('正在请求摄像头权限…\n请在浏览器弹窗中点击"允许"。');
   try {
@@ -78,7 +118,8 @@ async function bootstrap(): Promise<void> {
     hud.showError(err instanceof Error ? err.message : String(err));
     return;
   }
-  hud.clearMessage();
+
+  hud.showMessage('准备就绪！\n空格 / 点击 开始\n挥动手臂 = 挥拍击球 · R 重开');
 
   let lastDetectAt = 0;
   let trackFrames = 0;
@@ -90,11 +131,8 @@ async function bootstrap(): Promise<void> {
 
   game.onFrame = (dt) => {
     const now = performance.now();
-    playerController.update(dt);
-    aiController.update(dt);
-    rally.update(dt);
 
-    // 追踪推理：限频执行，用最近结果驱动显示
+    // 追踪推理：限频执行，用最近结果驱动显示（暂停时照常追踪，便于调试）
     if (camera.ready && now - lastDetectAt >= DETECT_INTERVAL_MS) {
       lastDetectAt = now;
       const hand = tracker.detect(camera.video, now);
@@ -110,11 +148,23 @@ async function bootstrap(): Promise<void> {
         if (swing) {
           lastSwing = swing;
           debug?.flashSwing();
-          playerController.swing(swing);
+          if (flow === 'playing') playerController.swing(swing);
         }
       } else {
         gesture.onLost();
       }
+    }
+
+    if (flow === 'playing') {
+      playerController.update(dt);
+      aiController.update(dt);
+      rally.update(dt);
+    }
+
+    // 击球闪光衰减
+    if (shuttleFlash > 0) {
+      shuttleFlash = Math.max(0, shuttleFlash - dt * 6);
+      game.world.shuttle.group.scale.setScalar(1 + shuttleFlash * 0.6);
     }
 
     trackAccum += dt;

@@ -45,6 +45,15 @@ export class RallyManager {
     this.homes[side] = { ...pos };
   }
 
+  /** 重开一局：清零比分，回到待发球状态 */
+  reset(): void {
+    this.match.reset();
+    this.pendingScorer = null;
+    this.holdAtServer();
+    this.phase = 'waitingServe';
+    this.timer = SERVE_DELAY;
+  }
+
   /** 一方挥拍（触球瞬间调用）：球在辅助窗口内则回击到对方场地 */
   tryHit(hitter: Side): boolean {
     if (this.phase !== 'flying' || !this.physics.active) return false;

@@ -57,6 +57,7 @@ export class Game {
     this.elapsed += dt;
     this.world.update(dt, this.elapsed);
     this.onFrame?.(dt);
+    this.applyCameraShake(dt);
     this.renderer.render(this.scene, this.camera);
     this.trackFps(dt);
   };
@@ -69,6 +70,25 @@ export class Game {
       this.fpsAccum = 0;
       this.fpsFrames = 0;
     }
+  }
+
+  /** 击球瞬间的镜头冲击（轻微，指数衰减） */
+  private shake = 0;
+  private cameraBase = new THREE.Vector3();
+
+  addShake(magnitude: number): void {
+    this.shake = Math.min(0.25, this.shake + magnitude);
+  }
+
+  private applyCameraShake(dt: number): void {
+    if (this.cameraBase.lengthSq() === 0) this.cameraBase.copy(this.camera.position);
+    this.shake *= Math.exp(-9 * dt);
+    if (this.shake < 0.001) this.shake = 0;
+    this.camera.position.set(
+      this.cameraBase.x + (Math.random() - 0.5) * this.shake,
+      this.cameraBase.y + (Math.random() - 0.5) * this.shake * 0.6,
+      this.cameraBase.z,
+    );
   }
 
   private onResize = (): void => {

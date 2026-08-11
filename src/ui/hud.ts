@@ -15,6 +15,11 @@ export class Hud {
     this.fpsEl.textContent = `FPS: ${fps.toFixed(0)}`;
   }
 
+  /** 顶部计分板 */
+  setScore(player: number, ai: number): void {
+    mustGet('hud-score').textContent = `${player} : ${ai}`;
+  }
+
   /** 一般提示（如"等待摄像头授权…"）。 */
   showMessage(text: string): void {
     this.messageEl.textContent = text;

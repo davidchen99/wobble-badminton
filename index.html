@@ -39,6 +39,17 @@
         font-weight: 700;
         font-size: 15px;
       }
+      #hud-score {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 34px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+        letter-spacing: 2px;
+      }
       #hud-message {
         position: absolute;
         top: 50%;
@@ -125,6 +136,7 @@
         <div id="hud-title">Wobble Badminton</div>
         <div id="hud-fps">FPS: --</div>
       </div>
+      <div id="hud-score">0 : 0</div>
       <div id="hud-message" hidden></div>
       <div id="debug-panel">
         <pre id="debug-stats"></pre>

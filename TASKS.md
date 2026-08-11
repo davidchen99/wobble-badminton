@@ -25,10 +25,10 @@
 - [x] 固定易读镜头与简单灯光
 
 ## M3 控制
-- [ ] swing event 驱动挥拍
-- [ ] 正/反手基础动作
-- [ ] spring/damping 身体惯性
-- [ ] 防止重复触发
+- [x] swing event 驱动挥拍
+- [x] 正/反手基础动作
+- [x] spring/damping 身体惯性
+- [x] 防止重复触发
 
 ## M4 球
 - [ ] ShuttlePhysics
@@ -71,3 +71,4 @@
 - M0：手写脚手架（非 create-vite），three@0.1xx + vite + TS strict；Game 循环用 setAnimationLoop，delta 钳制 1/20s；typecheck/build 通过。
 - M1：模型 hand_landmarker.task 与 tasks-vision wasm 已本地化到 public/（下载需 -4 强制 IPv4，googleapis 的 IPv6 在此网络不通）。数据空间统一做 x 镜像翻转，预览容器 CSS scaleX(-1) 保持叠加对齐。推理限频 33ms，GPU delegate 失败回退 CPU。GestureDetector 为纯逻辑（EMA 平滑速度 + 阈值 + cooldown），7 个单测通过。googleapis /npm 偶发网络失败，重试即可。
 - M2：场地按真实单打尺寸（5.18×13.4m，网高 1.55m），z>0 玩家侧。角色为程序化层级 Transform（squashG/bodyG/armR），球拍夸张化挂右臂。网面用 CanvasTexture 网格贴图，无阴影、半球光+单方向光。镜头固定 (0,6.2,11.2) 看 (0,0.6,-1.2)。
+- M3：PlayerController 用 0.38s 关键帧挥拍动画（右=正手横扫/左=反手/上=过顶/下=低捞），触球点在进度 0.42 并触发 onStrike（供 M4 击球判定）。lean/squash 两个 spring/damper 提供身体惯性。防重复触发双保险：手势 cooldown + 动画前 55% 保护期。3 个单测通过。

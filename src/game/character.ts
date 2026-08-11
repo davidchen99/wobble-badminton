@@ -20,7 +20,8 @@ export interface CharacterOptions {
  */
 export class WobbleCharacter {
   readonly group = new THREE.Group();
-  private squashG = new THREE.Group();
+  /** squash/lean 表现层（PlayerController 驱动），与 idle 呼吸层分离 */
+  readonly squashG = new THREE.Group();
   private bodyG = new THREE.Group();
   private headG = new THREE.Group();
   private armL = new THREE.Group();

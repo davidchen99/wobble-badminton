@@ -2,6 +2,7 @@ import { CameraManager } from './camera/CameraManager';
 import { GestureDetector, type SwingEvent } from './camera/GestureDetector';
 import { HandTracker, type TrackedHand } from './camera/HandTracker';
 import { Game } from './game/Game';
+import { PlayerController } from './player/PlayerController';
 import { DebugPanel } from './ui/DebugPanel';
 import { Hud } from './ui/hud';
 
@@ -20,6 +21,7 @@ async function bootstrap(): Promise<void> {
 
   const gesture = new GestureDetector();
   const debug = DEBUG_ENABLED ? new DebugPanel(gesture) : null;
+  const playerController = new PlayerController(game.world.player);
 
   const camera = new CameraManager();
   hud.showMessage('正在请求摄像头权限…\n请在浏览器弹窗中点击"允许"。');
@@ -53,6 +55,7 @@ async function bootstrap(): Promise<void> {
 
   game.onFrame = (dt) => {
     const now = performance.now();
+    playerController.update(dt);
 
     // 追踪推理：限频执行，用最近结果驱动显示
     if (camera.ready && now - lastDetectAt >= DETECT_INTERVAL_MS) {
@@ -70,7 +73,7 @@ async function bootstrap(): Promise<void> {
         if (swing) {
           lastSwing = swing;
           debug?.flashSwing();
-          // M3 将在此驱动角色挥拍
+          playerController.swing(swing);
         }
       } else {
         gesture.onLost();

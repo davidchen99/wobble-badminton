@@ -39,6 +39,10 @@
         font-weight: 700;
         font-size: 15px;
       }
+      #hud-hint {
+        font-size: 11px;
+        opacity: 0.55;
+      }
       #hud-score {
         position: absolute;
         top: 10px;
@@ -70,18 +74,25 @@
       #hud-message[hidden] {
         display: none;
       }
-      /* 摄像头预览（右下角，容器 CSS 镜像显示，与翻转后的追踪数据对齐） */
+      /* 摄像头预览（右下角，容器 CSS 镜像显示，与翻转后的追踪数据对齐；点击放大） */
       #cam-preview {
         position: absolute;
         right: 12px;
         bottom: 12px;
-        width: 192px;
-        height: 144px;
+        width: 320px;
+        height: 240px;
         transform: scaleX(-1);
         border-radius: 8px;
         overflow: hidden;
         background: #000;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        pointer-events: auto;
+        cursor: pointer;
+        transition: width 0.15s, height 0.15s;
+      }
+      #cam-preview.large {
+        width: 480px;
+        height: 360px;
       }
       #cam-preview video,
       #cam-overlay {
@@ -135,15 +146,16 @@
       <div id="hud-top">
         <div id="hud-title">Wobble Badminton</div>
         <div id="hud-fps">FPS: --</div>
+        <div id="hud-hint">` 调试面板 · 点预览图可放大</div>
       </div>
       <div id="hud-score">0 : 0</div>
       <div id="hud-message" hidden></div>
-      <div id="debug-panel">
+      <div id="debug-panel" hidden>
         <pre id="debug-stats"></pre>
         <div id="debug-controls"></div>
       </div>
-      <div id="cam-preview">
-        <canvas id="cam-overlay" width="192" height="144"></canvas>
+      <div id="cam-preview" title="点击放大/缩小">
+        <canvas id="cam-overlay" width="480" height="360"></canvas>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

@@ -35,6 +35,7 @@ const GESTURE_SLIDERS: { key: 'swingSpeedThreshold' | 'cooldownMs' | 'smoothing'
  * 生产模式可通过 URL 参数 ?debug=0 隐藏（见 main.ts）。
  */
 export class DebugPanel {
+  private panelEl: HTMLElement;
   private statsEl: HTMLElement;
   private controlsEl: HTMLElement;
   private overlay: HTMLCanvasElement;
@@ -42,6 +43,7 @@ export class DebugPanel {
   private swingFlashUntil = 0;
 
   constructor(private gesture: GestureDetector) {
+    this.panelEl = mustGet('debug-panel');
     this.statsEl = mustGet('debug-stats');
     this.controlsEl = mustGet('debug-controls');
     this.overlay = mustGet<HTMLCanvasElement>('cam-overlay');
@@ -58,6 +60,14 @@ export class DebugPanel {
         },
       })),
     );
+  }
+
+  get visible(): boolean {
+    return !this.panelEl.hidden;
+  }
+
+  toggle(): void {
+    this.panelEl.hidden = !this.panelEl.hidden;
   }
 
   /** 追加一组调参滑杆（如 AI 反应延迟/失误率） */

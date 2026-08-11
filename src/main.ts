@@ -15,8 +15,8 @@ import { Hud } from './ui/hud';
 /** 推理间隔下限（毫秒）：追踪不必每渲染帧执行，与渲染解耦（TECH_SPEC） */
 const DETECT_INTERVAL_MS = 33;
 const URL_PARAMS = new URLSearchParams(location.search);
-/** 挥拍速度阈值滑杆等调试功能通过 ?debug=0 可关（生产模式） */
-const DEBUG_ENABLED = URL_PARAMS.get('debug') !== '0';
+/** 调试面板默认隐藏，按 ` 呼出；?debug=1 默认展开（生产模式） */
+const DEBUG_DEFAULT_OPEN = URL_PARAMS.get('debug') === '1';
 /** 新手引导默认开启，?tutorial=0 跳过（老玩家/调试） */
 const TUTORIAL_ENABLED = URL_PARAMS.get('tutorial') !== '0';
 
@@ -31,7 +31,8 @@ async function bootstrap(): Promise<void> {
   game.start();
 
   const gesture = new GestureDetector();
-  const debug = DEBUG_ENABLED ? new DebugPanel(gesture) : null;
+  const debug = new DebugPanel(gesture);
+  if (DEBUG_DEFAULT_OPEN) debug.toggle();
   const sound = new SoundManager();
   const playerController = new PlayerController(game.world.player);
   const rally = new RallyManager(game.world.shuttle, {
@@ -39,7 +40,7 @@ async function bootstrap(): Promise<void> {
     ai: { x: AI_HOME.x, y: AI_HOME.y, z: AI_HOME.z },
   });
   const aiController = new AIController(game.world.ai, rally);
-  debug?.addSliders([
+  debug.addSliders([
     {
       label: 'AI反应 (ms)', min: 0, max: 600, step: 20,
       get: () => aiController.params.reactionMs,
@@ -88,6 +89,10 @@ async function bootstrap(): Promise<void> {
   };
   window.addEventListener('keydown', (e) => {
     sound.ensure(); // 任何首次按键都尝试解锁音频（引导自动开球路径）
+    if (e.code === 'Backquote') {
+      debug.toggle();
+      return;
+    }
     if (e.code === 'Space') {
       e.preventDefault();
       if (flow === 'menu') startGame();
@@ -125,6 +130,11 @@ async function bootstrap(): Promise<void> {
 
   const preview = document.getElementById('cam-preview');
   preview?.prepend(camera.video);
+  // 点击预览切换大画幅；阻止冒泡避免触发"跳过引导/开始"的点击语义
+  preview?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    preview.classList.toggle('large');
+  });
 
   hud.showMessage('摄像头已就绪，正在加载手部追踪模型…');
   let tracker: WorkerTracker;
@@ -172,7 +182,7 @@ async function bootstrap(): Promise<void> {
       });
       if (swing) {
         lastSwing = swing;
-        debug?.flashSwing();
+        debug.flashSwing();
         if (flow === 'playing' || flow === 'tutorial') playerController.swing(swing);
         if (flow === 'tutorial') tutorial.onSwing(swing.direction);
       }
@@ -213,8 +223,9 @@ async function bootstrap(): Promise<void> {
       trackAccum = 0;
     }
 
-    if (debug) {
-      debug.drawOverlay(lastHand);
+    // 骨架叠加始终绘制（识别反馈是引导的一部分）；数据面板仅展开时更新
+    debug.drawOverlay(lastHand);
+    if (debug.visible) {
       statsAccum += dt;
       if (statsAccum >= 0.2) {
         statsAccum = 0;

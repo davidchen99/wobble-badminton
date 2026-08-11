@@ -4,6 +4,10 @@ import { HAND_CONNECTIONS, type TrackedHand } from '../camera/HandTracker';
 export interface DebugStats {
   renderFps: number;
   trackingFps: number;
+  /** 推理 delegate（GPU/CPU）与耗时、投递间隔——卡顿诊断关键指标 */
+  delegate: string | null;
+  inferMs: number;
+  detectIntervalMs: number;
   /** 当前置信度；null 表示未检测到手 */
   confidence: number | null;
   velocity: { x: number; y: number };
@@ -92,7 +96,7 @@ export class DebugPanel {
     const v = stats.velocity;
     const lines = [
       `render FPS : ${stats.renderFps.toFixed(0)}`,
-      `track FPS  : ${stats.trackingFps.toFixed(0)}`,
+      `track FPS  : ${stats.trackingFps.toFixed(0)} (${stats.delegate ?? '--'} ${stats.inferMs.toFixed(0)}ms/帧, 间隔${stats.detectIntervalMs.toFixed(0)}ms)`,
       `confidence : ${stats.confidence === null ? '--' : stats.confidence.toFixed(2)}`,
       `wrist vel  : ${v.x.toFixed(2)}, ${v.y.toFixed(2)} (|v|=${Math.hypot(v.x, v.y).toFixed(2)})`,
       `cooldown   : ${stats.cooldownActive ? 'active' : 'ready'}`,

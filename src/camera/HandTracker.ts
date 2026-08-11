@@ -36,10 +36,13 @@ const WRIST_INDEX = 0;
 export class HandTracker {
   private landmarker: HandLandmarker;
   private options: HandTrackerOptions;
+  /** 实际生效的推理 delegate（GPU 优先，失败回退 CPU），用于性能诊断 */
+  readonly delegate: 'GPU' | 'CPU';
 
-  private constructor(landmarker: HandLandmarker, options: HandTrackerOptions) {
+  private constructor(landmarker: HandLandmarker, options: HandTrackerOptions, delegate: 'GPU' | 'CPU') {
     this.landmarker = landmarker;
     this.options = options;
+    this.delegate = delegate;
   }
 
   static async create(options: Partial<HandTrackerOptions> = {}): Promise<HandTracker> {
@@ -66,11 +69,11 @@ export class HandTracker {
     // 优先 GPU delegate，失败回退 CPU（TECH_SPEC：MediaPipe 初始化失败要给出可理解错误）
     try {
       const landmarker = await HandLandmarker.createFromOptions(vision, makeOptions('GPU'));
-      return new HandTracker(landmarker, opts);
+      return new HandTracker(landmarker, opts, 'GPU');
     } catch {
       try {
         const landmarker = await HandLandmarker.createFromOptions(vision, makeOptions('CPU'));
-        return new HandTracker(landmarker, opts);
+        return new HandTracker(landmarker, opts, 'CPU');
       } catch (err) {
         throw new Error(
           `手部追踪模型初始化失败：${err instanceof Error ? err.message : String(err)}`,
@@ -80,13 +83,20 @@ export class HandTracker {
   }
 
   /**
-   * 对当前视频帧做一次推理（同步阻塞数毫秒，调用方负责控制频率）。
+   * 对一帧输入做一次推理（同步阻塞数毫秒；在主线程以外调用可避免卡渲染）。
+   * @param input 视频元素或 ImageBitmap（Worker 内使用时为后者）
    * @param nowMs 单调递增时间戳（performance.now()）
    */
-  detect(video: HTMLVideoElement, nowMs: number): TrackedHand | null {
-    if (video.readyState < 2 || video.videoWidth === 0) return null;
+  detect(input: HTMLVideoElement | ImageBitmap, nowMs: number): TrackedHand | null {
+    if (
+      typeof HTMLVideoElement !== 'undefined' &&
+      input instanceof HTMLVideoElement &&
+      (input.readyState < 2 || input.videoWidth === 0)
+    ) {
+      return null;
+    }
 
-    const result = this.landmarker.detectForVideo(video, nowMs);
+    const result = this.landmarker.detectForVideo(input, nowMs);
     if (!result.landmarks || result.landmarks.length === 0) return null;
 
     const handedness = result.handedness?.[0]?.[0];

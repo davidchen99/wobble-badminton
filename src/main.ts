@@ -1,6 +1,7 @@
 import { CameraManager } from './camera/CameraManager';
 import { GestureDetector, type SwingEvent } from './camera/GestureDetector';
-import { HandTracker, type TrackedHand } from './camera/HandTracker';
+import type { TrackedHand } from './camera/HandTracker';
+import { WorkerTracker } from './camera/WorkerTracker';
 import { AIController } from './ai/AIController';
 import { SoundManager } from './audio/SoundManager';
 import { Game } from './game/Game';
@@ -111,17 +112,20 @@ async function bootstrap(): Promise<void> {
   preview?.prepend(camera.video);
 
   hud.showMessage('摄像头已就绪，正在加载手部追踪模型…');
-  let tracker: HandTracker;
+  let tracker: WorkerTracker;
   try {
-    tracker = await HandTracker.create();
+    tracker = await WorkerTracker.create();
   } catch (err) {
     hud.showError(err instanceof Error ? err.message : String(err));
     return;
   }
+  console.info(`[tracking] delegate = ${tracker.delegate}`);
 
   hud.showMessage('准备就绪！\n空格 / 点击 开始\n挥动手臂 = 挥拍击球 · R 重开');
 
   let lastDetectAt = 0;
+  let detectIntervalMs = DETECT_INTERVAL_MS; // 自适应：推理耗时越长投递越稀疏
+  let inferEma = 0;
   let trackFrames = 0;
   let trackAccum = 0;
   let trackingFps = 0;
@@ -129,30 +133,36 @@ async function bootstrap(): Promise<void> {
   let lastSwing: SwingEvent | null = null;
   let statsAccum = 0;
 
+  tracker.onResult = (hand, inferMs, t) => {
+    lastHand = hand;
+    trackFrames++;
+    inferEma = inferEma === 0 ? inferMs : inferEma * 0.7 + inferMs * 0.3;
+    // 渲染优先：推理耗时的 1.5 倍作为投递间隔（33ms~250ms）
+    detectIntervalMs = Math.min(250, Math.max(DETECT_INTERVAL_MS, inferEma * 1.5));
+    if (hand) {
+      const swing = gesture.addSample({
+        t: t / 1000, // 用帧捕获时刻计算速度，抵消推理延迟
+        x: hand.wrist.x,
+        y: hand.wrist.y,
+        confidence: hand.confidence,
+      });
+      if (swing) {
+        lastSwing = swing;
+        debug?.flashSwing();
+        if (flow === 'playing') playerController.swing(swing);
+      }
+    } else {
+      gesture.onLost();
+    }
+  };
+
   game.onFrame = (dt) => {
     const now = performance.now();
 
-    // 追踪推理：限频执行，用最近结果驱动显示（暂停时照常追踪，便于调试）
-    if (camera.ready && now - lastDetectAt >= DETECT_INTERVAL_MS) {
+    // 投递推理帧：频率自适应，Worker 忙时自动丢帧，渲染永不被推理阻塞
+    if (camera.ready && now - lastDetectAt >= detectIntervalMs) {
       lastDetectAt = now;
-      const hand = tracker.detect(camera.video, now);
-      lastHand = hand;
-      trackFrames++;
-      if (hand) {
-        const swing = gesture.addSample({
-          t: now / 1000,
-          x: hand.wrist.x,
-          y: hand.wrist.y,
-          confidence: hand.confidence,
-        });
-        if (swing) {
-          lastSwing = swing;
-          debug?.flashSwing();
-          if (flow === 'playing') playerController.swing(swing);
-        }
-      } else {
-        gesture.onLost();
-      }
+      tracker.submit(camera.video, now);
     }
 
     if (flow === 'playing') {
@@ -182,6 +192,9 @@ async function bootstrap(): Promise<void> {
         debug.updateStats({
           renderFps: game.currentFps,
           trackingFps,
+          delegate: tracker.delegate,
+          inferMs: inferEma,
+          detectIntervalMs: detectIntervalMs,
           confidence: lastHand?.confidence ?? null,
           velocity: gesture.velocity,
           cooldownActive: gesture.cooldownActive(now / 1000),

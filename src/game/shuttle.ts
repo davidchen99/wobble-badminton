@@ -34,10 +34,10 @@ export class Shuttle {
     this.group.position.set(x, y, z);
   }
 
-  /** 让球头对齐飞行方向 */
-  faceVelocity(v: THREE.Vector3): void {
-    if (v.lengthSq() < 1e-6) return;
-    const target = this.group.position.clone().sub(v);
-    this.group.lookAt(target);
+  /** 让球头对齐飞行方向（接受任意 {x,y,z} 结构，避免依赖物理层的类型） */
+  faceVelocity(v: { x: number; y: number; z: number }): void {
+    if (Math.hypot(v.x, v.y, v.z) < 1e-6) return;
+    const p = this.group.position;
+    this.group.lookAt(p.x - v.x, p.y - v.y, p.z - v.z);
   }
 }

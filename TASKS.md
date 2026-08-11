@@ -38,11 +38,11 @@
 - [x] 单元测试纯逻辑
 
 ## M5 AI
-- [ ] 预计落点
-- [ ] AI 移动
-- [ ] AI 挥拍与回球
-- [ ] 可调反应延迟/失误率
-- [ ] 连续 rally
+- [x] 预计落点
+- [x] AI 移动
+- [x] AI 挥拍与回球
+- [x] 可调反应延迟/失误率
+- [x] 连续 rally
 
 ## M6 游戏化
 - [ ] 比分
@@ -73,3 +73,4 @@
 - M2：场地按真实单打尺寸（5.18×13.4m，网高 1.55m），z>0 玩家侧。角色为程序化层级 Transform（squashG/bodyG/armR），球拍夸张化挂右臂。网面用 CanvasTexture 网格贴图，无阴影、半球光+单方向光。镜头固定 (0,6.2,11.2) 看 (0,0.6,-1.2)。
 - M3：PlayerController 用 0.38s 关键帧挥拍动画（右=正手横扫/左=反手/上=过顶/下=低捞），触球点在进度 0.42 并触发 onStrike（供 M4 击球判定）。lean/squash 两个 spring/damper 提供身体惯性。防重复触发双保险：手势 cooldown + 动画前 55% 保护期。3 个单测通过。
 - M4：ShuttlePhysics 用线性阻力 + 每步精确指数积分，与 computeHitVelocity 闭式解严格一致——选定落点反解初速度即"统一可靠回球"。solveFlight 逐步加长飞行时间保证过网。触网时球拉回触网侧 0.02m 再下落，保证判分与视觉一致。RallyManager 串起 发球→飞行→窗口回击→落地/出界判分→重新发球；得分者发球。20 个单测通过。
+- M5：AIController 规则 AI：predictLanding 预测落点 → 横向移动（4.5m/s 限幅 ±2.3m）→ 反应延迟（默认 180ms）→ 按 STRIKE_LEAD（0.16s）提前量挥拍，复用 PlayerController 动画。失误率默认 15%（整球不接）。RallyManager.updateHome 让击球窗口/落点跟随 AI 站位。AI 参数进 Debug 滑杆。预测落点与 AI 回球/失误行为有集成测试。

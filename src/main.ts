@@ -1,6 +1,7 @@
 import { CameraManager } from './camera/CameraManager';
 import { GestureDetector, type SwingEvent } from './camera/GestureDetector';
 import { HandTracker, type TrackedHand } from './camera/HandTracker';
+import { AIController } from './ai/AIController';
 import { Game } from './game/Game';
 import { RallyManager } from './game/rally';
 import { AI_HOME, PLAYER_HOME } from './game/world';
@@ -28,6 +29,19 @@ async function bootstrap(): Promise<void> {
     player: { x: PLAYER_HOME.x, y: PLAYER_HOME.y, z: PLAYER_HOME.z },
     ai: { x: AI_HOME.x, y: AI_HOME.y, z: AI_HOME.z },
   });
+  const aiController = new AIController(game.world.ai, rally);
+  debug?.addSliders([
+    {
+      label: 'AI反应 (ms)', min: 0, max: 600, step: 20,
+      get: () => aiController.params.reactionMs,
+      set: (v) => { aiController.params.reactionMs = v; },
+    },
+    {
+      label: 'AI失误率', min: 0, max: 0.5, step: 0.01,
+      get: () => aiController.params.missRate,
+      set: (v) => { aiController.params.missRate = v; },
+    },
+  ]);
 
   // 挥拍触球瞬间 → 尝试击球（球在辅助窗口内才成立）
   playerController.onStrike = () => {
@@ -77,6 +91,7 @@ async function bootstrap(): Promise<void> {
   game.onFrame = (dt) => {
     const now = performance.now();
     playerController.update(dt);
+    aiController.update(dt);
     rally.update(dt);
 
     // 追踪推理：限频执行，用最近结果驱动显示

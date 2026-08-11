@@ -187,3 +187,40 @@ export function inHitWindow(pos: Vec3, vel: Vec3, hitter: Side, hitterHome: Vec3
   const dz = pos.z - (hitterHome.z + HIT_WINDOW.forward * dir);
   return dx * dx + dy * dy + dz * dz <= HIT_WINDOW.radius * HIT_WINDOW.radius;
 }
+
+/** 闭式预测 t 秒后的位置（与 ShuttlePhysics 积分公式一致） */
+export function predictPosition(pos: Vec3, vel: Vec3, t: number, k: number, g: number): Vec3 {
+  const e = Math.exp(-k * t);
+  const a = (1 - e) / k;
+  return {
+    x: pos.x + vel.x * a,
+    y: pos.y + (vel.y + g / k) * a - (g * t) / k,
+    z: pos.z + vel.z * a,
+  };
+}
+
+/** 前向模拟预测落点与落地时间（AI 移动/挥拍时机用） */
+export function predictLanding(
+  pos: Vec3,
+  vel: Vec3,
+  k: number,
+  g: number,
+): { pos: Vec3; time: number } {
+  let p = { ...pos };
+  let v = { ...vel };
+  const dt = 1 / 60;
+  let t = 0;
+  for (let i = 0; i < 600; i++) {
+    const e = Math.exp(-k * dt);
+    const a = (1 - e) / k;
+    p = {
+      x: p.x + v.x * a,
+      y: p.y + (v.y + g / k) * a - (g * dt) / k,
+      z: p.z + v.z * a,
+    };
+    v = { x: v.x * e, y: (v.y + g / k) * e - g / k, z: v.z * e };
+    t += dt;
+    if (p.y <= 0) return { pos: { x: p.x, y: 0, z: p.z }, time: t };
+  }
+  return { pos: { x: p.x, y: 0, z: p.z }, time: t };
+}

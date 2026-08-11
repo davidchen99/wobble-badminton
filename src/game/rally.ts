@@ -40,6 +40,11 @@ export class RallyManager {
     return this.match.scores;
   }
 
+  /** 更新某方的站位参考点（AI 移动时逐帧同步，影响击球窗口与落点选择） */
+  updateHome(side: Side, pos: Vec3): void {
+    this.homes[side] = { ...pos };
+  }
+
   /** 一方挥拍（触球瞬间调用）：球在辅助窗口内则回击到对方场地 */
   tryHit(hitter: Side): boolean {
     if (this.phase !== 'flying' || !this.physics.active) return false;

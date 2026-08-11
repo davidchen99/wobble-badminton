@@ -12,14 +12,15 @@ export interface DebugStats {
 }
 
 interface SliderDef {
-  key: 'swingSpeedThreshold' | 'cooldownMs' | 'smoothing';
   label: string;
   min: number;
   max: number;
   step: number;
+  get: () => number;
+  set: (v: number) => void;
 }
 
-const SLIDERS: SliderDef[] = [
+const GESTURE_SLIDERS: { key: 'swingSpeedThreshold' | 'cooldownMs' | 'smoothing'; label: string; min: number; max: number; step: number }[] = [
   { key: 'swingSpeedThreshold', label: '挥拍速度阈值', min: 0.5, max: 4, step: 0.1 },
   { key: 'cooldownMs', label: '冷却 (ms)', min: 100, max: 800, step: 10 },
   { key: 'smoothing', label: '平滑', min: 0.1, max: 0.9, step: 0.05 },
@@ -31,26 +32,38 @@ const SLIDERS: SliderDef[] = [
  */
 export class DebugPanel {
   private statsEl: HTMLElement;
+  private controlsEl: HTMLElement;
   private overlay: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private swingFlashUntil = 0;
 
   constructor(private gesture: GestureDetector) {
     this.statsEl = mustGet('debug-stats');
+    this.controlsEl = mustGet('debug-controls');
     this.overlay = mustGet<HTMLCanvasElement>('cam-overlay');
     const ctx = this.overlay.getContext('2d');
     if (!ctx) throw new Error('无法创建 debug 画布上下文');
     this.ctx = ctx;
-    this.buildSliders();
+
+    this.addSliders(
+      GESTURE_SLIDERS.map((def) => ({
+        ...def,
+        get: () => this.gesture.params[def.key],
+        set: (v) => {
+          this.gesture.params[def.key] = v;
+        },
+      })),
+    );
   }
 
-  private buildSliders(): void {
-    const container = mustGet('debug-controls');
-    for (const def of SLIDERS) {
+  /** 追加一组调参滑杆（如 AI 反应延迟/失误率） */
+  addSliders(defs: SliderDef[]): void {
+    for (const def of defs) {
       const row = document.createElement('label');
       row.className = 'debug-slider';
 
       const name = document.createElement('span');
+      name.textContent = def.label;
       const value = document.createElement('span');
       value.className = 'debug-slider-value';
 
@@ -59,22 +72,19 @@ export class DebugPanel {
       input.min = String(def.min);
       input.max = String(def.max);
       input.step = String(def.step);
-      input.value = String(this.gesture.params[def.key]);
+      input.value = String(def.get());
 
       const render = () => {
-        name.textContent = def.label;
-        value.textContent = Number(this.gesture.params[def.key]).toFixed(
-          def.step < 0.1 ? 2 : 1,
-        );
+        value.textContent = def.get().toFixed(def.step < 0.1 ? 2 : 1);
       };
       input.addEventListener('input', () => {
-        this.gesture.params[def.key] = Number(input.value);
+        def.set(Number(input.value));
         render();
       });
       render();
 
       row.append(name, input, value);
-      container.appendChild(row);
+      this.controlsEl.appendChild(row);
     }
   }
 

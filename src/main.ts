@@ -1,6 +1,7 @@
 import { CameraManager } from './camera/CameraManager';
 import { GestureDetector, type SwingEvent } from './camera/GestureDetector';
 import type { TrackedHand } from './camera/HandTracker';
+import { mapToCourt, MOVE_RANGE, MovementTracker } from './camera/MovementTracker';
 import { WorkerTracker } from './camera/WorkerTracker';
 import { AIController } from './ai/AIController';
 import { SoundManager } from './audio/SoundManager';
@@ -33,6 +34,8 @@ async function bootstrap(): Promise<void> {
   const gesture = new GestureDetector();
   const debug = new DebugPanel(gesture);
   if (DEBUG_DEFAULT_OPEN) debug.toggle();
+  // 手部慢速位移 = 角色移动意图（gate 取挥拍阈值的 60%）
+  const movement = new MovementTracker(gesture.params.swingSpeedThreshold * 0.6);
   const sound = new SoundManager();
   const playerController = new PlayerController(game.world.player);
   const rally = new RallyManager(game.world.shuttle, {
@@ -107,6 +110,7 @@ async function bootstrap(): Promise<void> {
       }
     } else if (e.code === 'KeyR' && flow !== 'menu' && flow !== 'tutorial') {
       rally.reset();
+      movement.reset();
       hud.setScore(0, 0);
       flow = 'playing';
       hud.clearMessage();
@@ -204,6 +208,26 @@ async function bootstrap(): Promise<void> {
       playerController.update(dt);
       aiController.update(dt);
       rally.update(dt);
+
+      // 身体移动控制角色：慢动手部位移 → 场地目标位置（快动是挥拍，不影响位置）
+      const speed = Math.hypot(gesture.velocity.x, gesture.velocity.y);
+      movement.update(
+        lastHand ? { x: lastHand.palm.x, y: lastHand.palm.y } : null,
+        speed,
+        dt,
+      );
+      const target = mapToCourt(movement.pos, { x: PLAYER_HOME.x, z: PLAYER_HOME.z });
+      const pp = game.world.player.group.position;
+      const dx = target.x - pp.x;
+      const dz = target.z - pp.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > 1e-4) {
+        const step = Math.min(dist, MOVE_RANGE.speed * dt);
+        pp.x += (dx / dist) * step;
+        pp.z += (dz / dist) * step;
+        // 击球窗口与 AI 落点选择跟随玩家站位
+        rally.updateHome('player', { x: pp.x, y: 0, z: pp.z });
+      }
     } else if (flow === 'tutorial') {
       // 引导中角色也响应挥拍（纯演示，不碰球），并实时反馈识别状态
       playerController.update(dt);

@@ -64,7 +64,7 @@ export class Tutorial {
       case 'swingRight':
         return '第 3/4 步 ✓ 左挥成功\n\n向右挥一次 →';
       case 'ready':
-        return '第 4/4 步 ✓ 右挥成功\n\n后退半步，让上半身进入画面\n球来了就挥拍！马上开球…';
+        return '第 4/4 步 ✓ 右挥成功\n\n后退半步，让上半身进入画面\n身体左右移动 = 角色跑位 · 球来了就挥拍！马上开球…';
       case 'done':
         return '';
     }

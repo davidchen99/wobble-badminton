@@ -13,15 +13,17 @@
 不要为了形式强行拆文件；保持模块边界清楚即可。
 
 ## 数据流
-Camera frame → Hand landmarks → smoothing → wrist velocity/direction → swing event → PlayerController → hit window → ShuttlePhysics。
+Camera frame → Hand landmarks → smoothing → 掌心 velocity/direction → 移动意图 / swing event → PlayerController → hit window → ShuttlePhysics。
 
 渲染与摄像头推理尽量解耦；推理不必每个 render frame 执行。允许降低推理频率，并使用最近结果驱动渲染。
 
 ## 手势检测
-维护最近 N 帧手腕样本：时间、归一化位置。计算平滑速度向量和峰值。参数至少包括：swingSpeedThreshold、cooldownMs、smoothing、dominantHand、confidence threshold。Debug UI 可实时调参。
+以掌心（9 号关键点）为采样点，维护最近 N 帧样本：时间、归一化位置。计算平滑速度向量和峰值。参数至少包括：swingSpeedThreshold、cooldownMs、smoothing、dominantHand、confidence threshold。Debug UI 可实时调参。
+意图分离：速度低于移动阈值的手部位移驱动角色移动，高于挥拍阈值才产生 swing event。
 
 ## 性能预算
 目标 1280×720；最低目标 30 FPS，尽量 60 FPS。摄像头约 640×480。默认 Low/Medium 画质；简单材质；限制灯光和阴影；限制 draw calls；粒子池化；避免昂贵后处理和实时反射。
+推理治理（首轮实测教训）：启动时确认并显示 GPU/CPU delegate；推理输入可降到更低分辨率；推理耗时长则自适应降频，任何时候渲染 FPS 优先于追踪 FPS；追踪预览绘制与推理解耦。Debug 面板默认隐藏，快捷键呼出。
 
 ## 角色“软”效果
 不要真实软体模拟。用简单骨骼/层级 Transform + spring/damping + squash/lean + 程序化挥拍和恢复，实现摇晃、惯性、失衡。

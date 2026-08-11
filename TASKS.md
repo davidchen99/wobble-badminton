@@ -10,12 +10,12 @@
 - [x] 配置 typecheck/build 命令
 
 ## M1 摄像头
-- [ ] CameraManager：授权/错误处理
-- [ ] 集成 MediaPipe Hand Landmarker
-- [ ] 显示 tracking debug
-- [ ] GestureDetector：轨迹缓冲与平滑
-- [ ] 输出 swing direction / speed / cooldown
-- [ ] 添加灵敏度调参 UI
+- [x] CameraManager：授权/错误处理
+- [x] 集成 MediaPipe Hand Landmarker
+- [x] 显示 tracking debug
+- [x] GestureDetector：轨迹缓冲与平滑
+- [x] 输出 swing direction / speed / cooldown
+- [x] 添加灵敏度调参 UI
 
 ## M2 场景
 - [ ] Low-poly 球场/网
@@ -69,3 +69,4 @@
 
 ## Notes
 - M0：手写脚手架（非 create-vite），three@0.1xx + vite + TS strict；Game 循环用 setAnimationLoop，delta 钳制 1/20s；typecheck/build 通过。
+- M1：模型 hand_landmarker.task 与 tasks-vision wasm 已本地化到 public/（下载需 -4 强制 IPv4，googleapis 的 IPv6 在此网络不通）。数据空间统一做 x 镜像翻转，预览容器 CSS scaleX(-1) 保持叠加对齐。推理限频 33ms，GPU delegate 失败回退 CPU。GestureDetector 为纯逻辑（EMA 平滑速度 + 阈值 + cooldown），7 个单测通过。googleapis /npm 偶发网络失败，重试即可。

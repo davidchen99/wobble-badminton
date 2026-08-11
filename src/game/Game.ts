@@ -36,21 +36,24 @@ export class Game {
     window.addEventListener('resize', this.onResize);
   }
 
+  /** 每帧回调（渲染循环内、render 之前调用），由 main.ts 注入玩法/追踪驱动逻辑。 */
+  onFrame: ((dt: number) => void) | null = null;
+
+  /** 当前瞬时渲染 FPS 估计（Debug 面板用） */
+  get currentFps(): number {
+    return this.fpsFrames > 0 ? this.fpsFrames / Math.max(this.fpsAccum, 1e-6) : 0;
+  }
+
   start(): void {
     this.renderer.setAnimationLoop(this.tick);
   }
 
   private tick = (): void => {
     const dt = Math.min(this.clock.getDelta(), MAX_DELTA);
-    this.update(dt);
+    this.onFrame?.(dt);
     this.renderer.render(this.scene, this.camera);
     this.trackFps(dt);
   };
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  protected update(_dt: number): void {
-    // M0 空场景；后续里程碑在此驱动玩法逻辑。
-  }
 
   private trackFps(dt: number): void {
     this.fpsAccum += dt;

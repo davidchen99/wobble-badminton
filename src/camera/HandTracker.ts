@@ -1,4 +1,20 @@
-import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+import type { HandLandmarker } from '@mediapipe/tasks-vision';
+
+/** tasks-vision 包的模块类型（仅类型引用，运行时不经打包器） */
+type VisionModule = typeof import('@mediapipe/tasks-vision');
+
+/**
+ * 运行时从 public/ 静态路径加载 tasks-vision（@vite-ignore 阻止 Vite 分析）。
+ * 原因：库内部会动态 import wasm 胶水 js；一旦被 Vite 纳入模块图，
+ * /public 里的文件会被"禁止从源码 import"守卫拦截（Worker 内实测触发）。
+ * 整条链路走浏览器原生 fetch（静态文件），dev 与 build 行为一致。
+ * 路径用常量传入，避免 TS 去解析一个不存在的模块声明。
+ */
+const VISION_BUNDLE_URL = '/mediapipe-wasm/vision_bundle.mjs';
+
+async function loadVision(): Promise<VisionModule> {
+  return import(/* @vite-ignore */ VISION_BUNDLE_URL) as Promise<VisionModule>;
+}
 
 export interface TrackedHand {
   /** 掌心坐标（9 号关键点，已镜像翻转的归一化坐标；挥拍弧线比手腕大，识别更灵敏） */
@@ -47,9 +63,11 @@ export class HandTracker {
 
   static async create(options: Partial<HandTrackerOptions> = {}): Promise<HandTracker> {
     const opts = { ...DEFAULT_OPTIONS, ...options };
+    let visionLib: VisionModule;
     let vision;
     try {
-      vision = await FilesetResolver.forVisionTasks('/mediapipe-wasm');
+      visionLib = await loadVision();
+      vision = await visionLib.FilesetResolver.forVisionTasks('/mediapipe-wasm');
     } catch (err) {
       throw new Error(`手部追踪组件加载失败：${err instanceof Error ? err.message : String(err)}`);
     }
@@ -68,11 +86,11 @@ export class HandTracker {
 
     // 优先 GPU delegate，失败回退 CPU（TECH_SPEC：MediaPipe 初始化失败要给出可理解错误）
     try {
-      const landmarker = await HandLandmarker.createFromOptions(vision, makeOptions('GPU'));
+      const landmarker = await visionLib.HandLandmarker.createFromOptions(vision, makeOptions('GPU'));
       return new HandTracker(landmarker, opts, 'GPU');
     } catch {
       try {
-        const landmarker = await HandLandmarker.createFromOptions(vision, makeOptions('CPU'));
+        const landmarker = await visionLib.HandLandmarker.createFromOptions(vision, makeOptions('CPU'));
         return new HandTracker(landmarker, opts, 'CPU');
       } catch (err) {
         throw new Error(

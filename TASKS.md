@@ -88,3 +88,4 @@
 - M6：游戏流状态机 menu/playing/paused（空格或点击开始，空格暂停，R 重开）。SoundManager 全程序化音效（击球噪声爆+音调、挥空气流声、得分双音/低音），AudioContext 在首次用户手势创建。击球反馈：镜头冲击（指数衰减）+ 球体闪光 + squash。顶部常驻计分板。
 - 启动器：`启动游戏.bat`（GBK+CRLF 编码，cmd 才能正确解析中文）双击启动 dev 服务器并自动开浏览器，桌面快捷方式+icon.ico 由 make_shortcut.ps1 生成。注意：.bat 改内容后必须保持 GBK 编码，否则 cmd 解析乱码。
 - 首轮实测根因记录（2026-08-11）：卡顿根因 = 主线程同步推理（detectForVideo 阻塞渲染循环）；回不了球 = 球飞行时间短（1s 起）+ 挥拍阈值/触球延迟偏高 + 卡顿叠加；采样点将改掌心 9 号点。M7 任务已列入 TASKS。
+- M7 教训：Vite dev 会给 module Worker 内的动态 import 追加 ?import 纳入模块图，触发 "/public 禁止从源码 import" 守卫（@vite-ignore 无效）。解法 = public/tracking-worker.js 经典 Worker + importScripts 加载 vision_bundle.js（IIFE 全局 Vision），wasm 胶水走 MediaPipe 官方 importScripts 路径。

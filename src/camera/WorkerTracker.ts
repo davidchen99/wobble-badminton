@@ -25,9 +25,8 @@ export class WorkerTracker {
 
   static create(): Promise<WorkerTracker> {
     return new Promise((resolve, reject) => {
-      const worker = new Worker(new URL('./trackingWorker.ts', import.meta.url), {
-        type: 'module',
-      });
+      // 经典 Worker + public/ 静态文件：完全绕开 Vite 模块图（dev/build 行为一致）
+      const worker = new Worker('/tracking-worker.js');
       const instance = new WorkerTracker(worker);
       worker.onmessage = (ev: MessageEvent) => {
         const msg = ev.data;

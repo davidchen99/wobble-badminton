@@ -1,20 +1,9 @@
-import type { HandLandmarker } from '@mediapipe/tasks-vision';
-
-/** tasks-vision 包的模块类型（仅类型引用，运行时不经打包器） */
-type VisionModule = typeof import('@mediapipe/tasks-vision');
-
 /**
- * 运行时从 public/ 静态路径加载 tasks-vision（@vite-ignore 阻止 Vite 分析）。
- * 原因：库内部会动态 import wasm 胶水 js；一旦被 Vite 纳入模块图，
- * /public 里的文件会被"禁止从源码 import"守卫拦截（Worker 内实测触发）。
- * 整条链路走浏览器原生 fetch（静态文件），dev 与 build 行为一致。
- * 路径用常量传入，避免 TS 去解析一个不存在的模块声明。
+ * 手部追踪的共享类型与常量。
+ *
+ * 推理本身在 public/tracking-worker.js（经典 Worker，importScripts 加载 MediaPipe）。
+ * 该文件中的结果提取约定（镜像翻转 / 掌心 9 号点 / 置信度）与本文件保持一致，改动需同步。
  */
-const VISION_BUNDLE_URL = '/mediapipe-wasm/vision_bundle.mjs';
-
-async function loadVision(): Promise<VisionModule> {
-  return import(/* @vite-ignore */ VISION_BUNDLE_URL) as Promise<VisionModule>;
-}
 
 export interface TrackedHand {
   /** 掌心坐标（9 号关键点，已镜像翻转的归一化坐标；挥拍弧线比手腕大，识别更灵敏） */
@@ -25,117 +14,11 @@ export interface TrackedHand {
   landmarks: { x: number; y: number }[];
 }
 
-export interface HandTrackerOptions {
-  /** 惯用手过滤；'any' 表示追踪任意一只手（MVP 默认，numHands=1） */
-  dominantHand: 'any' | 'left' | 'right';
-  minDetectionConfidence: number;
-  minTrackingConfidence: number;
-}
-
-const DEFAULT_OPTIONS: HandTrackerOptions = {
-  dominantHand: 'any',
-  minDetectionConfidence: 0.5,
-  minTrackingConfidence: 0.5,
-};
-
-/** MediaPipe 手部关键点中的掌心采样点（中指根 MCP，挥拍轨迹幅度最大） */
-const PALM_INDEX = 9;
-
 /**
- * HandTracker：封装 MediaPipe Hand Landmarker。
- * 模型与 wasm 走本地 public/ 路径，离线可用。
- *
  * 坐标约定：getUserMedia 原始画面是"照片视角"（用户的右手在画面左侧）。
- * 这里统一做 x 镜像翻转，使数据空间与玩家自我感知的镜面一致；
+ * Worker 内统一做 x 镜像翻转，使数据空间与玩家自我感知的镜面一致；
  * debug 预览容器用 CSS scaleX(-1) 镜像显示，叠加绘制保持对齐。
  */
-export class HandTracker {
-  private landmarker: HandLandmarker;
-  private options: HandTrackerOptions;
-  /** 实际生效的推理 delegate（GPU 优先，失败回退 CPU），用于性能诊断 */
-  readonly delegate: 'GPU' | 'CPU';
-
-  private constructor(landmarker: HandLandmarker, options: HandTrackerOptions, delegate: 'GPU' | 'CPU') {
-    this.landmarker = landmarker;
-    this.options = options;
-    this.delegate = delegate;
-  }
-
-  static async create(options: Partial<HandTrackerOptions> = {}): Promise<HandTracker> {
-    const opts = { ...DEFAULT_OPTIONS, ...options };
-    let visionLib: VisionModule;
-    let vision;
-    try {
-      visionLib = await loadVision();
-      vision = await visionLib.FilesetResolver.forVisionTasks('/mediapipe-wasm');
-    } catch (err) {
-      throw new Error(`手部追踪组件加载失败：${err instanceof Error ? err.message : String(err)}`);
-    }
-
-    const baseOptions = {
-      modelAssetPath: '/models/hand_landmarker.task',
-    };
-    const makeOptions = (delegate: 'GPU' | 'CPU') => ({
-      baseOptions: { ...baseOptions, delegate },
-      runningMode: 'VIDEO' as const,
-      numHands: 1,
-      minHandDetectionConfidence: opts.minDetectionConfidence,
-      minHandPresenceConfidence: opts.minTrackingConfidence,
-      minTrackingConfidence: opts.minTrackingConfidence,
-    });
-
-    // 优先 GPU delegate，失败回退 CPU（TECH_SPEC：MediaPipe 初始化失败要给出可理解错误）
-    try {
-      const landmarker = await visionLib.HandLandmarker.createFromOptions(vision, makeOptions('GPU'));
-      return new HandTracker(landmarker, opts, 'GPU');
-    } catch {
-      try {
-        const landmarker = await visionLib.HandLandmarker.createFromOptions(vision, makeOptions('CPU'));
-        return new HandTracker(landmarker, opts, 'CPU');
-      } catch (err) {
-        throw new Error(
-          `手部追踪模型初始化失败：${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    }
-  }
-
-  /**
-   * 对一帧输入做一次推理（同步阻塞数毫秒；在主线程以外调用可避免卡渲染）。
-   * @param input 视频元素或 ImageBitmap（Worker 内使用时为后者）
-   * @param nowMs 单调递增时间戳（performance.now()）
-   */
-  detect(input: HTMLVideoElement | ImageBitmap, nowMs: number): TrackedHand | null {
-    if (
-      typeof HTMLVideoElement !== 'undefined' &&
-      input instanceof HTMLVideoElement &&
-      (input.readyState < 2 || input.videoWidth === 0)
-    ) {
-      return null;
-    }
-
-    const result = this.landmarker.detectForVideo(input, nowMs);
-    if (!result.landmarks || result.landmarks.length === 0) return null;
-
-    const handedness = result.handedness?.[0]?.[0];
-    if (this.options.dominantHand !== 'any' && handedness) {
-      // MediaPipe 的 handedness 假设输入是镜像画面；原始摄像头帧未镜像，需交换左右
-      const label = handedness.categoryName === 'Left' ? 'right' : 'left';
-      if (label !== this.options.dominantHand) return null;
-    }
-
-    const landmarks = result.landmarks[0].map((lm) => ({ x: 1 - lm.x, y: lm.y }));
-    return {
-      palm: landmarks[PALM_INDEX],
-      confidence: handedness?.score ?? 0.5,
-      landmarks,
-    };
-  }
-
-  dispose(): void {
-    this.landmarker.close();
-  }
-}
 
 /** MediaPipe 手部骨架连线（供 debug 绘制） */
 export const HAND_CONNECTIONS: [number, number][] = [

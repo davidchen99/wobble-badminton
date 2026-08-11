@@ -6,6 +6,7 @@ import { AIController } from './ai/AIController';
 import { SoundManager } from './audio/SoundManager';
 import { Game } from './game/Game';
 import { RallyManager } from './game/rally';
+import { Tutorial } from './game/tutorial';
 import { AI_HOME, PLAYER_HOME } from './game/world';
 import { PlayerController } from './player/PlayerController';
 import { DebugPanel } from './ui/DebugPanel';
@@ -13,10 +14,13 @@ import { Hud } from './ui/hud';
 
 /** 推理间隔下限（毫秒）：追踪不必每渲染帧执行，与渲染解耦（TECH_SPEC） */
 const DETECT_INTERVAL_MS = 33;
+const URL_PARAMS = new URLSearchParams(location.search);
 /** 挥拍速度阈值滑杆等调试功能通过 ?debug=0 可关（生产模式） */
-const DEBUG_ENABLED = new URLSearchParams(location.search).get('debug') !== '0';
+const DEBUG_ENABLED = URL_PARAMS.get('debug') !== '0';
+/** 新手引导默认开启，?tutorial=0 跳过（老玩家/调试） */
+const TUTORIAL_ENABLED = URL_PARAMS.get('tutorial') !== '0';
 
-type Flow = 'menu' | 'playing' | 'paused';
+type Flow = 'menu' | 'tutorial' | 'playing' | 'paused';
 
 async function bootstrap(): Promise<void> {
   const app = document.getElementById('app');
@@ -54,6 +58,7 @@ async function bootstrap(): Promise<void> {
   ]);
 
   let flow: Flow = 'menu';
+  const tutorial = new Tutorial();
 
   // ---- 击球反馈：声音 + 镜头冲击 + 球闪 ----
   let shuttleFlash = 0;
@@ -82,17 +87,20 @@ async function bootstrap(): Promise<void> {
     hud.clearMessage();
   };
   window.addEventListener('keydown', (e) => {
+    sound.ensure(); // 任何首次按键都尝试解锁音频（引导自动开球路径）
     if (e.code === 'Space') {
       e.preventDefault();
       if (flow === 'menu') startGame();
-      else if (flow === 'playing') {
+      else if (flow === 'tutorial') {
+        tutorial.skip(); // onStepChange('done') 会触发 startGame
+      } else if (flow === 'playing') {
         flow = 'paused';
         hud.showMessage('已暂停\n空格 继续 · R 重开');
       } else {
         flow = 'playing';
         hud.clearMessage();
       }
-    } else if (e.code === 'KeyR' && flow !== 'menu') {
+    } else if (e.code === 'KeyR' && flow !== 'menu' && flow !== 'tutorial') {
       rally.reset();
       hud.setScore(0, 0);
       flow = 'playing';
@@ -100,7 +108,9 @@ async function bootstrap(): Promise<void> {
     }
   });
   window.addEventListener('pointerdown', () => {
+    sound.ensure();
     if (flow === 'menu') startGame();
+    else if (flow === 'tutorial') tutorial.skip();
   });
 
   // ---- 摄像头与追踪 ----
@@ -126,7 +136,16 @@ async function bootstrap(): Promise<void> {
   }
   console.info(`[tracking] delegate = ${tracker.delegate}`);
 
-  hud.showMessage('准备就绪！\n空格 / 点击 开始\n挥动手臂 = 挥拍击球 · R 重开');
+  tutorial.onStepChange = (step) => {
+    if (step === 'done') startGame();
+    else hud.showMessage(`${tutorial.prompt}\n\n（空格 跳过引导）`);
+  };
+  if (TUTORIAL_ENABLED) {
+    flow = 'tutorial';
+    hud.showMessage(`${tutorial.prompt}\n\n（空格 跳过引导）`);
+  } else {
+    hud.showMessage('准备就绪！\n空格 / 点击 开始\n挥动手臂 = 挥拍击球 · R 重开');
+  }
 
   let lastDetectAt = 0;
   let detectIntervalMs = DETECT_INTERVAL_MS; // 自适应：推理耗时越长投递越稀疏
@@ -154,7 +173,8 @@ async function bootstrap(): Promise<void> {
       if (swing) {
         lastSwing = swing;
         debug?.flashSwing();
-        if (flow === 'playing') playerController.swing(swing);
+        if (flow === 'playing' || flow === 'tutorial') playerController.swing(swing);
+        if (flow === 'tutorial') tutorial.onSwing(swing.direction);
       }
     } else {
       gesture.onLost();
@@ -174,6 +194,10 @@ async function bootstrap(): Promise<void> {
       playerController.update(dt);
       aiController.update(dt);
       rally.update(dt);
+    } else if (flow === 'tutorial') {
+      // 引导中角色也响应挥拍（纯演示，不碰球），并实时反馈识别状态
+      playerController.update(dt);
+      tutorial.update(dt, lastHand !== null);
     }
 
     // 击球闪光衰减

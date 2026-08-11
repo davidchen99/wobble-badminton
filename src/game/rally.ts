@@ -25,6 +25,8 @@ export class RallyManager {
   flightTime = 1.6;
   /** 判分回调（HUD 提示 / M6 计分板） */
   onPoint: ((scorer: Side, scores: Record<Side, number>) => void) | null = null;
+  /** 球的物理接触事件回调（音效用）：触网 / 落地 */
+  onContact: ((kind: 'net' | 'ground') => void) | null = null;
 
   private shuttle: Shuttle;
   private homes: RallyHomes;
@@ -89,7 +91,9 @@ export class RallyManager {
           if (ev === 'net') {
             // 触网者失分（球还会继续下落，落地时结算）
             this.pendingScorer = this.physics.lastHitter === 'player' ? 'ai' : 'player';
+            this.onContact?.('net');
           } else if (ev === 'ground') {
+            this.onContact?.('ground');
             this.finishPoint();
           }
         }

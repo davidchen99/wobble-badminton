@@ -83,6 +83,11 @@ async function bootstrap(): Promise<void> {
     hud.setScore(scores.player, scores.ai);
     sound.point(scorer);
   };
+  rally.onContact = (kind) => {
+    if (flow !== 'playing') return;
+    if (kind === 'net') sound.net();
+    else sound.bounce();
+  };
 
   // ---- 开始 / 暂停 / 重开 ----
   const startGame = (): void => {

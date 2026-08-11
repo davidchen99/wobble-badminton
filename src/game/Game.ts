@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Hud } from '../ui/hud';
+import { buildWorld, type World } from './world';
 
 /** 单帧允许的最大步长，避免后台切回后物理/动画跳变。 */
 const MAX_DELTA = 1 / 20;
@@ -10,6 +11,8 @@ export class Game {
   private camera: THREE.PerspectiveCamera;
   private clock = new THREE.Clock();
   private hud: Hud;
+  readonly world: World;
+  private elapsed = 0;
 
   private fpsAccum = 0;
   private fpsFrames = 0;
@@ -22,7 +25,7 @@ export class Game {
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1a1d23);
+    this.world = buildWorld(this.scene);
 
     this.camera = new THREE.PerspectiveCamera(
       50,
@@ -30,8 +33,9 @@ export class Game {
       0.1,
       100,
     );
-    this.camera.position.set(0, 4, 8);
-    this.camera.lookAt(0, 1, 0);
+    // 固定易读镜头：玩家侧后上方，俯视全场
+    this.camera.position.set(0, 6.2, 11.2);
+    this.camera.lookAt(0, 0.6, -1.2);
 
     window.addEventListener('resize', this.onResize);
   }
@@ -50,6 +54,8 @@ export class Game {
 
   private tick = (): void => {
     const dt = Math.min(this.clock.getDelta(), MAX_DELTA);
+    this.elapsed += dt;
+    this.world.update(dt, this.elapsed);
     this.onFrame?.(dt);
     this.renderer.render(this.scene, this.camera);
     this.trackFps(dt);

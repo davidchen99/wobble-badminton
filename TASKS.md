@@ -18,11 +18,11 @@
 - [x] 添加灵敏度调参 UI
 
 ## M2 场景
-- [ ] Low-poly 球场/网
-- [ ] 程序化呆萌玩家角色
-- [ ] 程序化 AI 角色
-- [ ] 羽毛球可视对象
-- [ ] 固定易读镜头与简单灯光
+- [x] Low-poly 球场/网
+- [x] 程序化呆萌玩家角色
+- [x] 程序化 AI 角色
+- [x] 羽毛球可视对象
+- [x] 固定易读镜头与简单灯光
 
 ## M3 控制
 - [ ] swing event 驱动挥拍
@@ -70,3 +70,4 @@
 ## Notes
 - M0：手写脚手架（非 create-vite），three@0.1xx + vite + TS strict；Game 循环用 setAnimationLoop，delta 钳制 1/20s；typecheck/build 通过。
 - M1：模型 hand_landmarker.task 与 tasks-vision wasm 已本地化到 public/（下载需 -4 强制 IPv4，googleapis 的 IPv6 在此网络不通）。数据空间统一做 x 镜像翻转，预览容器 CSS scaleX(-1) 保持叠加对齐。推理限频 33ms，GPU delegate 失败回退 CPU。GestureDetector 为纯逻辑（EMA 平滑速度 + 阈值 + cooldown），7 个单测通过。googleapis /npm 偶发网络失败，重试即可。
+- M2：场地按真实单打尺寸（5.18×13.4m，网高 1.55m），z>0 玩家侧。角色为程序化层级 Transform（squashG/bodyG/armR），球拍夸张化挂右臂。网面用 CanvasTexture 网格贴图，无阴影、半球光+单方向光。镜头固定 (0,6.2,11.2) 看 (0,0.6,-1.2)。

@@ -1,8 +1,8 @@
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
 export interface TrackedHand {
-  /** 手腕坐标（已镜像翻转的归一化坐标） */
-  wrist: { x: number; y: number };
+  /** 掌心坐标（9 号关键点，已镜像翻转的归一化坐标；挥拍弧线比手腕大，识别更灵敏） */
+  palm: { x: number; y: number };
   /** 手部追踪置信度 0..1 */
   confidence: number;
   /** 21 个关键点（已镜像翻转），供 debug 绘制 */
@@ -22,8 +22,8 @@ const DEFAULT_OPTIONS: HandTrackerOptions = {
   minTrackingConfidence: 0.5,
 };
 
-/** MediaPipe 手部关键点中手腕的下标 */
-const WRIST_INDEX = 0;
+/** MediaPipe 手部关键点中的掌心采样点（中指根 MCP，挥拍轨迹幅度最大） */
+const PALM_INDEX = 9;
 
 /**
  * HandTracker：封装 MediaPipe Hand Landmarker。
@@ -108,7 +108,7 @@ export class HandTracker {
 
     const landmarks = result.landmarks[0].map((lm) => ({ x: 1 - lm.x, y: lm.y }));
     return {
-      wrist: landmarks[WRIST_INDEX],
+      palm: landmarks[PALM_INDEX],
       confidence: handedness?.score ?? 0.5,
       landmarks,
     };

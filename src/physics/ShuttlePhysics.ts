@@ -117,13 +117,13 @@ export class ShuttlePhysics {
 
   /**
    * 求一条能过网的可靠弹道：逐步加长飞行时间（抛物线更高）直到过网。
-   * 返回初速度与飞行时间。
+   * baseT 为基础飞行时间（秒）——全局球速/难度参数：越大球越慢越高，新手越从容。
    */
-  solveFlight(from: Vec3, to: Vec3): { vel: Vec3; flightTime: number } {
-    let vel = this.computeHitVelocity(from, to, 1);
-    let T = 1;
-    for (const candidate of [1.0, 1.25, 1.5, 1.8, 2.2]) {
-      T = candidate;
+  solveFlight(from: Vec3, to: Vec3, baseT = 1.6): { vel: Vec3; flightTime: number } {
+    let vel = this.computeHitVelocity(from, to, baseT);
+    let T = baseT;
+    for (const extra of [0, 0.25, 0.5, 0.8, 1.2]) {
+      T = baseT + extra;
       vel = this.computeHitVelocity(from, to, T);
       if (this.clearsNet(from, vel)) return { vel, flightTime: T };
     }

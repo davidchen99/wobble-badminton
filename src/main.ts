@@ -46,6 +46,11 @@ async function bootstrap(): Promise<void> {
       get: () => aiController.params.missRate,
       set: (v) => { aiController.params.missRate = v; },
     },
+    {
+      label: '球速(秒/趟)', min: 1.0, max: 2.5, step: 0.1,
+      get: () => rally.flightTime,
+      set: (v) => { rally.flightTime = v; },
+    },
   ]);
 
   let flow: Flow = 'menu';
@@ -142,8 +147,8 @@ async function bootstrap(): Promise<void> {
     if (hand) {
       const swing = gesture.addSample({
         t: t / 1000, // 用帧捕获时刻计算速度，抵消推理延迟
-        x: hand.wrist.x,
-        y: hand.wrist.y,
+        x: hand.palm.x,
+        y: hand.palm.y,
         confidence: hand.confidence,
       });
       if (swing) {

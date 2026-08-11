@@ -21,6 +21,8 @@ export interface RallyHomes {
 export class RallyManager {
   readonly physics = new ShuttlePhysics();
   readonly match = new MatchState();
+  /** 全局球速：回球/发球的基础飞行时间（秒），越大越慢越高（M7 高慢球节奏） */
+  flightTime = 1.6;
   /** 判分回调（HUD 提示 / M6 计分板） */
   onPoint: ((scorer: Side, scores: Record<Side, number>) => void) | null = null;
 
@@ -69,7 +71,7 @@ export class RallyManager {
       y: 0,
       z: hitter === 'player' ? -zMag : zMag,
     };
-    const { vel } = this.physics.solveFlight(this.physics.pos, target);
+    const { vel } = this.physics.solveFlight(this.physics.pos, target, this.flightTime);
     this.physics.launch(vel, this.physics.pos, hitter);
     return true;
   }
@@ -126,7 +128,7 @@ export class RallyManager {
       y: 0,
       z: targetHome.z + randSpread(1.0),
     };
-    const { vel } = this.physics.solveFlight(from, target);
+    const { vel } = this.physics.solveFlight(from, target, this.flightTime);
     this.physics.launch(vel, from, server);
     this.phase = 'flying';
     this.pendingScorer = null;

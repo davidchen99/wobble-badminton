@@ -2,40 +2,42 @@ import type { SwingDirection, SwingEvent } from '../camera/GestureDetector';
 import type { WobbleCharacter } from '../game/character';
 
 /** 一次挥拍动画时长（秒） */
-const SWING_DURATION = 0.38;
+const SWING_DURATION = 0.32;
 /** 动画进度中的触球点（M4 在此做击球判定） */
-const STRIKE_POINT = 0.42;
+const STRIKE_POINT = 0.34;
+/** 挥拍启动到触球的领先时间（秒），AI 挥拍时机也用它 */
+export const STRIKE_LEAD_SECONDS = SWING_DURATION * STRIKE_POINT;
 /** 动画前段免疫新挥拍，防止一次挥手重复触发（手势层 cooldown 之外的第二道保险） */
 const RESTART_GUARD = 0.55;
 
-/** 挥拍关键帧：[动画进度, armRotX, armRotZ]，分段线性插值 */
+/** 挥拍关键帧：[动画进度, armRotX, armRotZ]，分段线性插值；触球姿势在 STRIKE_POINT 进度处 */
 const SWING_KEYS: Record<SwingDirection, [number, number, number][]> = {
   // 正手：右侧后摆 → 快速横扫到左前上
   right: [
     [0, -0.2, -0.35],
-    [0.22, 0.15, -1.5],
-    [0.42, -0.9, 0.9],
+    [0.18, 0.15, -1.5],
+    [0.34, -0.9, 0.9],
     [1, -0.2, -0.35],
   ],
   // 反手：体前横收 → 向左外侧甩出
   left: [
     [0, -0.2, -0.35],
-    [0.22, -0.6, 0.9],
-    [0.42, -0.3, -1.6],
+    [0.18, -0.6, 0.9],
+    [0.34, -0.3, -1.6],
     [1, -0.2, -0.35],
   ],
   // 过顶：举臂后仰 → 向前扣下
   up: [
     [0, -0.2, -0.35],
-    [0.22, 1.3, -0.2],
-    [0.42, -1.7, -0.1],
+    [0.18, 1.3, -0.2],
+    [0.34, -1.7, -0.1],
     [1, -0.2, -0.35],
   ],
   // 低手位：沉臂后收 → 低掠向前
   down: [
     [0, -0.2, -0.35],
-    [0.22, 0.5, -0.9],
-    [0.42, -1.1, -0.5],
+    [0.18, 0.5, -0.9],
+    [0.34, -1.1, -0.5],
     [1, -0.2, -0.35],
   ],
 };

@@ -7,7 +7,7 @@ import {
 } from '../physics/ShuttlePhysics';
 import type { WobbleCharacter } from '../game/character';
 import type { RallyManager } from '../game/rally';
-import { PlayerController } from '../player/PlayerController';
+import { PlayerController, STRIKE_LEAD_SECONDS } from '../player/PlayerController';
 
 export interface AIParams {
   /** 球过网进入 AI 半场后，允许挥拍的反应延迟（毫秒） */
@@ -24,8 +24,8 @@ export const DEFAULT_AI_PARAMS: AIParams = {
   moveSpeed: 4.5,
 };
 
-/** 挥拍动画从启动到触球点的领先时间（PlayerController: 0.42 × 0.38s） */
-const STRIKE_LEAD = 0.42 * 0.38;
+/** 挥拍动画从启动到触球点的领先时间（与 PlayerController 关键帧一致） */
+const STRIKE_LEAD = STRIKE_LEAD_SECONDS;
 /** AI 横向活动范围（不超过边线太多） */
 const MOVE_LIMIT_X = 2.3;
 

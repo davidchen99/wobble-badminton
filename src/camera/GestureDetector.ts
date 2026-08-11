@@ -42,8 +42,8 @@ export interface GestureParams {
 }
 
 export const DEFAULT_GESTURE_PARAMS: GestureParams = {
-  swingSpeedThreshold: 1.6,
-  cooldownMs: 350,
+  swingSpeedThreshold: 1.2,
+  cooldownMs: 300,
   smoothing: 0.45,
   minConfidence: 0.5,
   bufferSeconds: 0.4,

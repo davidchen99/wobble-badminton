@@ -149,7 +149,7 @@ export class DebugPanel {
       // 手腕高亮
       ctx.fillStyle = '#ffd23f';
       ctx.beginPath();
-      ctx.arc(hand.wrist.x * w, hand.wrist.y * h, 4, 0, Math.PI * 2);
+      ctx.arc(hand.palm.x * w, hand.palm.y * h, 4, 0, Math.PI * 2);
       ctx.fill();
     }
 

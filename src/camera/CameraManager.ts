@@ -21,18 +21,28 @@ export class CameraManager {
       throw new Error('当前浏览器不支持摄像头 API，请使用最新版 Chrome/Edge。');
     }
 
-    let stream: MediaStream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: 'user',
-        },
-        audio: false,
-      });
-    } catch (err) {
-      throw new Error(describeCameraError(err));
+    let stream: MediaStream | null = null;
+    let lastErr: unknown;
+    // 摄像头偶发启动超时（多个游戏页面/程序抢占用、驱动初始化慢）：
+    // 可重试的错误隔 1.2s 再试一次，仍失败才报错给用户
+    for (let attempt = 0; attempt < 2 && !stream; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 1200));
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user',
+          },
+          audio: false,
+        });
+      } catch (err) {
+        lastErr = err;
+        if (!isRetriableCameraError(err)) break; // 权限拒绝等硬错误不必重试
+      }
+    }
+    if (!stream) {
+      throw new Error(describeCameraError(lastErr));
     }
 
     this.stream = stream;
@@ -55,6 +65,16 @@ export class CameraManager {
   }
 }
 
+/** 可重试的临时错误：超时/占用类值得再试一次，权限/无设备等硬错误直接报 */
+function isRetriableCameraError(err: unknown): boolean {
+  if (err instanceof DOMException) {
+    if (err.name === 'AbortError' || err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+      return true;
+    }
+  }
+  return err instanceof Error && /timeout/i.test(err.message);
+}
+
 function describeCameraError(err: unknown): string {
   if (err instanceof DOMException) {
     switch (err.name) {
@@ -66,11 +86,16 @@ function describeCameraError(err: unknown): string {
       case 'NotReadableError':
       case 'TrackStartError':
         return '摄像头被其他程序占用，请关闭其他使用摄像头的应用后刷新。';
+      case 'AbortError':
+        return '摄像头启动超时。多半是别的窗口/程序正占着摄像头：请关掉多余的游戏页面、会议或视频软件，然后刷新重试。';
       case 'OverconstrainedError':
         return '摄像头不支持请求的分辨率，请更换摄像头或修改配置。';
       case 'SecurityError':
         return '安全限制：摄像头需要 HTTPS 或 localhost 环境。';
     }
+  }
+  if (err instanceof Error && /timeout/i.test(err.message)) {
+    return '摄像头启动超时。请关闭其他游戏页面/视频软件后刷新重试。';
   }
   return `摄像头启动失败：${err instanceof Error ? err.message : String(err)}`;
 }

@@ -7,7 +7,7 @@ set -euo pipefail
 
 npm run build
 
-TMP_INDEX=.git/tmp-deploy-index
+TMP_INDEX="$PWD/.git/tmp-deploy-index"
 rm -f "$TMP_INDEX"
 # 用临时 index 打包 dist 内容，不动当前工作区与暂存区
 GIT_INDEX_FILE=$TMP_INDEX git read-tree --empty

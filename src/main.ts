@@ -1,4 +1,5 @@
 import { CameraManager } from './camera/CameraManager';
+import { FistDetector } from './camera/FistDetector';
 import { GestureDetector, type SwingEvent } from './camera/GestureDetector';
 import type { TrackedHand } from './camera/HandTracker';
 import { mapToCourt, MOVE_RANGE, MovementTracker } from './camera/MovementTracker';
@@ -32,6 +33,7 @@ async function bootstrap(): Promise<void> {
   game.start();
 
   const gesture = new GestureDetector();
+  const fist = new FistDetector();
   const debug = new DebugPanel(gesture);
   if (DEBUG_DEFAULT_OPEN) debug.toggle();
   // 手部慢速位移 = 角色移动意图（gate 取挥拍阈值的 60%）
@@ -192,11 +194,31 @@ async function bootstrap(): Promise<void> {
       if (swing) {
         lastSwing = swing;
         debug.flashSwing();
-        if (flow === 'playing' || flow === 'tutorial') playerController.swing(swing);
-        if (flow === 'tutorial') tutorial.onSwing(swing.direction);
+        // M8：空手模式下快挥不触发击打，挥动仅作演示/调试
+        if (flow === 'tutorial') {
+          playerController.swing(swing);
+          tutorial.onSwing(swing.direction);
+        }
+      }
+
+      // 握拳 = 击打（空手模式核心输入）
+      const grip = fist.update(hand.landmarks, t / 1000);
+      if (grip && flow === 'playing') {
+        if (grip.double) {
+          // 连握扣球：给刚打出去的球补刀
+          if (rally.smash()) {
+            sound.hit(3.5);
+            game.addShake(0.16);
+            shuttleFlash = 1.6;
+          }
+        } else {
+          // 正板直打：单一标准挥拍动作，onStrike 触球点做窗口判定
+          playerController.swing({ direction: 'right', speed: 2.2, time: grip.t });
+        }
       }
     } else {
       gesture.onLost();
+      fist.update(null, t / 1000);
     }
   };
 
@@ -214,14 +236,21 @@ async function bootstrap(): Promise<void> {
       aiController.update(dt);
       rally.update(dt);
 
-      // 身体移动控制角色：慢动手部位移 → 场地目标位置（快动是挥拍，不影响位置）
+      // 身体移动控制角色：慢动手部位移 → 场地目标（快动/握拳是击打，不影响位置）
       const speed = Math.hypot(gesture.velocity.x, gesture.velocity.y);
       movement.update(
-        lastHand ? { x: lastHand.palm.x, y: lastHand.palm.y } : null,
+        lastHand
+          ? { x: lastHand.palm.x, y: lastHand.palm.y, size: handSize(lastHand) }
+          : null,
         speed,
         dt,
+        fist.isFist,
       );
-      const target = mapToCourt(movement.pos, { x: PLAYER_HOME.x, z: PLAYER_HOME.z });
+      const target = mapToCourt(
+        movement.pos,
+        { x: PLAYER_HOME.x, z: PLAYER_HOME.z },
+        movement.sizeRatio,
+      );
       const pp = game.world.player.group.position;
       const dx = target.x - pp.x;
       const dz = target.z - pp.z;
@@ -277,3 +306,10 @@ async function bootstrap(): Promise<void> {
 bootstrap().catch((err) => {
   console.error(err);
 });
+
+/** 手大小代理：手腕(0)到中指根(9)的画面距离，用于前后移动映射 */
+function handSize(hand: TrackedHand): number {
+  const a = hand.landmarks[0];
+  const b = hand.landmarks[9];
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}

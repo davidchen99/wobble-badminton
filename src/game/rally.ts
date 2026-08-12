@@ -4,8 +4,12 @@ import type { Shuttle } from './shuttle';
 
 /** 回合结束到重新发球的间隔（秒） */
 const SERVE_DELAY = 1.4;
-/** 击球落点围绕对方站位的随机散布半径（米） */
-const TARGET_SPREAD = 1.6;
+/** 击球落点围绕对方站位的随机散布半径（米）——M8 正板直打，收窄 */
+const TARGET_SPREAD = 0.8;
+/** 扣球补刀窗口：击中后多少秒内允许连握加成（秒） */
+const SMASH_WINDOW = 0.6;
+/** 扣球基础飞行时间（秒）：比普通回球（默认 1.8）快得多、更平 */
+const SMASH_FLIGHT_TIME = 0.7;
 
 type RallyPhase = 'waitingServe' | 'flying' | 'pointEnd';
 
@@ -21,8 +25,8 @@ export interface RallyHomes {
 export class RallyManager {
   readonly physics = new ShuttlePhysics();
   readonly match = new MatchState();
-  /** 全局球速：回球/发球的基础飞行时间（秒），越大越慢越高（M7 高慢球节奏） */
-  flightTime = 1.6;
+  /** 全局球速：回球/发球的基础飞行时间（秒），越大越慢越高（M8 定稿开局慢球） */
+  flightTime = 1.8;
   /** 判分回调（HUD 提示 / M6 计分板） */
   onPoint: ((scorer: Side, scores: Record<Side, number>) => void) | null = null;
   /** 球的物理接触事件回调（音效用）：触网 / 落地 */
@@ -33,6 +37,9 @@ export class RallyManager {
   private phase: RallyPhase = 'waitingServe';
   private timer = 0;
   private pendingScorer: Side | null = null;
+  private time = 0;
+  /** 玩家最近一次成功击中的时刻（连握扣球窗口判定） */
+  private lastPlayerHitAt = -Infinity;
 
   constructor(shuttle: Shuttle, homes: RallyHomes) {
     this.shuttle = shuttle;
@@ -75,10 +82,35 @@ export class RallyManager {
     };
     const { vel } = this.physics.solveFlight(this.physics.pos, target, this.flightTime);
     this.physics.launch(vel, this.physics.pos, hitter);
+    if (hitter === 'player') this.lastPlayerHitAt = this.time;
+    return true;
+  }
+
+  /**
+   * 连握扣球：玩家刚击中且球还在飞向 AI 时，第二握把球"补"成扣杀——
+   * 更快更平，落点压向对方后场。返回是否补刀成功。
+   */
+  smash(): boolean {
+    if (this.phase !== 'flying' || !this.physics.active) return false;
+    if (this.physics.lastHitter !== 'player') return false;
+    if (this.time - this.lastPlayerHitAt > SMASH_WINDOW) return false;
+    if (this.physics.vel.z >= 0) return false; // 只补正在飞向 AI 的球
+
+    const aiHome = this.homes.ai;
+    const target: Vec3 = {
+      x: clamp(aiHome.x + randSpread(1.2), -2.2, 2.2),
+      y: 0,
+      z: -(5.4 + Math.random() * 0.7), // 压后场
+    };
+    // solveFlight 保证过网；0.7s 起逐步加长直到过网为止
+    const { vel } = this.physics.solveFlight(this.physics.pos, target, SMASH_FLIGHT_TIME);
+    this.physics.launch(vel, this.physics.pos, 'player');
+    this.lastPlayerHitAt = -Infinity; // 一板只能补一次
     return true;
   }
 
   update(dt: number): void {
+    this.time += dt;
     switch (this.phase) {
       case 'waitingServe':
         this.timer -= dt;

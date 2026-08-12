@@ -7,6 +7,7 @@ interface ToneOpts {
   type: OscillatorType;
   peak: number;
   delay?: number;
+  pan?: number; // 立体声位置（M13.5 分边欢呼：-1 左 ~ +1 右）
 }
 
 interface NoiseOpts {
@@ -17,6 +18,7 @@ interface NoiseOpts {
   q?: number;
   lowpass?: boolean;
   delay?: number;
+  pan?: number;
 }
 
 /**
@@ -94,18 +96,19 @@ export class SoundManager {
   }
 
   /**
-   * 人群欢呼（M13）：宽频噪声 swell + 几声口哨点缀，平时保持安静。
+   * 人群欢呼（M13/M13.5 分边）：宽频噪声 swell + 几声口哨点缀，平时保持安静。
    * strength 0~1：玩家得分/扣杀更嗨，AI 得分只给一声低落的小骚动。
+   * pan -1~1：欢呼来自左/右看台（左侧=玩家粉丝，右侧=对手粉丝）。
    */
-  cheer(strength = 1): void {
+  cheer(strength = 1, pan = 0): void {
     if (!this.ready()) return;
     const s = Math.min(1, Math.max(0, strength));
     // 人群噪声主体：带通上扫的"哗——"
-    this.noise({ f0: 600, f1: 1500, dur: 0.6 + 0.4 * s, peak: 0.06 + 0.16 * s, q: 0.5 });
+    this.noise({ f0: 600, f1: 1500, dur: 0.6 + 0.4 * s, peak: 0.06 + 0.16 * s, q: 0.5, pan });
     // 口哨点缀（仅较嗨时）
     if (s > 0.45) {
-      this.tone({ f0: 1900 + Math.random() * 300, f1: 2400, dur: 0.16, type: 'sine', peak: 0.05 * s, delay: 0.1 });
-      this.tone({ f0: 2300 + Math.random() * 300, f1: 1700, dur: 0.14, type: 'sine', peak: 0.04 * s, delay: 0.28 });
+      this.tone({ f0: 1900 + Math.random() * 300, f1: 2400, dur: 0.16, type: 'sine', peak: 0.05 * s, delay: 0.1, pan });
+      this.tone({ f0: 2300 + Math.random() * 300, f1: 1700, dur: 0.14, type: 'sine', peak: 0.04 * s, delay: 0.28, pan });
     }
   }
 
@@ -128,7 +131,8 @@ export class SoundManager {
     gain.gain.setValueAtTime(0, t0);
     gain.gain.linearRampToValueAtTime(o.peak, t0 + 0.005);
     gain.gain.exponentialRampToValueAtTime(0.001, t0 + o.dur);
-    osc.connect(gain).connect(this.bus!);
+    osc.connect(gain);
+    this.out(gain, o.pan);
     osc.start(t0);
     osc.stop(t0 + o.dur + 0.02);
   }
@@ -153,9 +157,21 @@ export class SoundManager {
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(o.peak, t0);
     gain.gain.exponentialRampToValueAtTime(0.001, t0 + o.dur);
-    src.connect(filter).connect(gain).connect(this.bus!);
+    src.connect(filter).connect(gain);
+    this.out(gain, o.pan);
     src.start(t0, Math.random() * 0.5);
     src.stop(t0 + o.dur + 0.02);
+  }
+
+  /** 接入总线；带 pan 时先过立体声声像（分边欢呼用） */
+  private out(node: AudioNode, pan?: number): void {
+    if (pan === undefined || pan === 0) {
+      node.connect(this.bus!);
+      return;
+    }
+    const panner = this.ctx!.createStereoPanner();
+    panner.pan.value = Math.max(-1, Math.min(1, pan));
+    node.connect(panner).connect(this.bus!);
   }
 
   /** 程序化混响脉冲响应：指数衰减白噪声（立体声） */

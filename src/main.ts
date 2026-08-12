@@ -158,10 +158,14 @@ async function bootstrap(): Promise<void> {
   rally.onPoint = (scorer, scores) => {
     hud.setScore(scores.player, scores.ai);
     sound.point(scorer);
-    // M13：观众欢呼（玩家得分全场嗨，AI 得分小骚动）
-    const heat = scorer === 'player' ? 1 : 0.35;
-    game.world.crowd.cheer(heat);
-    sound.cheer(heat);
+    // M13.5 分边欢呼：左侧看台=玩家粉丝，右侧=对手粉丝，谁得分哪边跳
+    if (scorer === 'player') {
+      game.world.crowd.cheer(1, 'player');
+      sound.cheer(1, -0.5);
+    } else {
+      game.world.crowd.cheer(0.35, 'ai');
+      sound.cheer(0.35, 0.5);
+    }
   };
   /** 本场次是否已拿过首胜奖杯（M9：仅首次获胜有领奖时刻，刷新页面重置） */
   let firstWinDone = false;
@@ -215,6 +219,9 @@ async function bootstrap(): Promise<void> {
     }
     game.world.player.setMood(win ? 'celebrate' : 'defeat');
     game.world.ai.setMood(win ? 'defeat' : 'celebrate');
+    // 终局欢呼：赢则全场沸腾，输则对面看台庆祝
+    game.world.crowd.cheer(1, win ? 'all' : 'ai');
+    sound.cheer(1, win ? 0 : 0.5);
     hud.setProgress({ track, levelIndex, rookieCleared, proCleared, proUnlocked }); // M13：赢关立刻点亮
   };
   rally.onContact = (kind) => {
@@ -440,6 +447,21 @@ async function bootstrap(): Promise<void> {
     }
     console.info(`[tracking] delegate = ${tracker.delegate}`);
 
+    // M13.5：标签页切到后台自动释放摄像头（避免多个游戏页面/会议软件互相抢占导致
+    // "Timeout starting video source"），切回前台自动重开；失败则按中文指引处理
+    document.addEventListener('visibilitychange', () => {
+      if (!camera) return;
+      if (document.hidden) {
+        camera.stop();
+      } else if (!camera.ready) {
+        hud.showMessage('正在重新打开摄像头…');
+        camera
+          .start()
+          .then(() => hud.clearMessage())
+          .catch((err) => hud.showError(err instanceof Error ? err.message : String(err)));
+      }
+    });
+
     tutorial.onStepChange = (step) => {
       if (step === 'done') {
         hideTutorial();
@@ -492,8 +514,8 @@ async function bootstrap(): Promise<void> {
             if (rally.smash()) {
               playerController.jumpSmash();
               sound.hit(3.5);
-              sound.cheer(0.8); // M13：扣杀成功观众欢呼
-              game.world.crowd.cheer(0.8);
+              sound.cheer(0.8, -0.5); // M13.5：扣杀成功，玩家侧（左看台）欢呼
+              game.world.crowd.cheer(0.8, 'player');
               shuttleFlash = 1.6;
             }
           } else {

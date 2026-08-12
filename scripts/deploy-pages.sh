@@ -17,5 +17,5 @@ CMT=$(git commit-tree "$TREE" -m "deploy: $(date '+%Y-%m-%d %H:%M')")
 git update-ref refs/heads/gh-pages "$CMT"
 rm -f "$TMP_INDEX"
 
-git push origin gh-pages
+git push -f origin gh-pages # commit-tree 产生的是无父提交，必须强推
 echo "已推送到 gh-pages 分支，Pages 几分钟后更新：https://davidchen99.github.io/wobble-badminton/"

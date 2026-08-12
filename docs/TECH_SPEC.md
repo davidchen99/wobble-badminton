@@ -18,8 +18,9 @@ Camera frame → Hand landmarks → smoothing → 掌心 velocity/direction → 
 渲染与摄像头推理尽量解耦；推理不必每个 render frame 执行。允许降低推理频率，并使用最近结果驱动渲染。
 
 ## 手势检测
-以掌心（9 号关键点）为采样点，维护最近 N 帧样本：时间、归一化位置。计算平滑速度向量和峰值。参数至少包括：swingSpeedThreshold、cooldownMs、smoothing、dominantHand、confidence threshold。Debug UI 可实时调参。
-意图分离：速度低于移动阈值的手部位移驱动角色移动，高于挥拍阈值才产生 swing event。
+以掌心（9 号关键点）为采样点，维护最近 N 帧样本：时间、归一化位置、手大小（关键点跨度，如 0→9 距离，作为深度/前后移动依据）。计算平滑速度向量和峰值。参数至少包括：swingSpeedThreshold、cooldownMs、smoothing、dominantHand、confidence threshold、fistThreshold（弯曲度+迟滞）、doubleGripMs（连握窗口 0.35s）。Debug UI 可实时调参。
+击打输入双通道：空手模式=握拳（指尖收拢比例过阈值，迟滞进出防抖）；持物模式=快速挥动。空手模式下快挥不触发击打。
+移动意图：空手模式手部慢速位移（左右=横向、大小变化=前后，引导校准基准）；持物模式 WASD。
 
 ## 性能预算
 目标 1280×720；最低目标 30 FPS，尽量 60 FPS。摄像头约 640×480。默认 Low/Medium 画质；简单材质；限制灯光和阴影；限制 draw calls；粒子池化；避免昂贵后处理和实时反射。

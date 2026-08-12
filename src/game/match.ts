@@ -18,8 +18,11 @@ export class MatchState {
   readonly scores: Record<Side, number> = { player: 0, ai: 0 };
   /** 下一球由谁发（初始玩家发） */
   server: Side = 'player';
-  /** 获胜分数线（M8 定稿：简化 21 分制，无 deuce） */
-  readonly winScore = 21;
+  /**
+   * 获胜分数线（M9 定稿：6 分快局默认 / 21 分标准赛可选，无 deuce）。
+   * 由开局赛制选择写入；reset 不清空，重开保持当前赛制。
+   */
+  winScore: 6 | 21 = 6;
   /** 已分出胜负时的胜方 */
   winner: Side | null = null;
 

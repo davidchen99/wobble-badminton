@@ -233,6 +233,63 @@
       .help-actions button#help-close {
         background: #455a64;
       }
+      /* 赛制选择层（开局：6 分快局默认 + 右上角 21 分标准赛入口） */
+      #format-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(10, 12, 16, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: auto;
+      }
+      #format-overlay[hidden] {
+        display: none;
+      }
+      #format-card {
+        text-align: center;
+        padding: 28px 44px;
+        border-radius: 14px;
+        background: rgba(24, 27, 34, 0.95);
+        box-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
+      }
+      #format-card h2 {
+        margin: 0 0 18px;
+        font-size: 24px;
+      }
+      #format-quick {
+        padding: 14px 34px;
+        border: none;
+        border-radius: 10px;
+        font-size: 20px;
+        font-weight: 700;
+        cursor: pointer;
+        background: #3a7d44;
+        color: #fff;
+      }
+      #format-quick:hover {
+        background: #4e8f52;
+      }
+      #format-tip {
+        margin-top: 12px;
+        font-size: 12px;
+        opacity: 0.6;
+      }
+      #format-standard {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        padding: 8px 16px;
+        border: 1px solid rgba(232, 234, 238, 0.4);
+        border-radius: 8px;
+        background: rgba(20, 22, 28, 0.8);
+        color: #e8eaee;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      #format-standard:hover {
+        background: rgba(60, 64, 74, 0.9);
+      }
       /* 新手引导简图（信息框上方） */
       #tutorial-sketch {
         position: absolute;
@@ -277,6 +334,14 @@
         </div>
       </div>
       <canvas id="tutorial-sketch" width="140" height="140" hidden></canvas>
+      <div id="format-overlay" hidden>
+        <div id="format-card">
+          <h2>Wobble Badminton</h2>
+          <button id="format-quick">开打 · 6 分快局</button>
+          <div id="format-tip">空格 / 点击画面 = 6 分快局（默认）</div>
+        </div>
+        <button id="format-standard" title="标准赛 21 分">标准赛 · 21 分</button>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

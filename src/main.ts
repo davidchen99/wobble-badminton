@@ -115,7 +115,7 @@ async function bootstrap(): Promise<void> {
     flow = 'matchEnd';
     const win = winner === 'player';
     hud.showMessage(
-      `${win ? '你赢了！' : 'AI 获胜'}  ${scores.player} : ${scores.ai}\n按 R 再来一局`,
+      `${win ? '你赢了！' : 'AI 获胜'}  ${scores.player} : ${scores.ai}\n按 R 再来一局 · C 换赛制`,
     );
     game.world.player.setMood(win ? 'celebrate' : 'defeat');
     game.world.ai.setMood(win ? 'defeat' : 'celebrate');
@@ -126,12 +126,41 @@ async function bootstrap(): Promise<void> {
     else sound.bounce();
   };
 
+  // ---- 赛制选择层（M9：6 分快局默认 / 21 分标准赛右上角入口） ----
+  const formatOverlay = document.getElementById('format-overlay') as HTMLElement;
+  const formatQuick = document.getElementById('format-quick') as HTMLButtonElement;
+  const formatStandard = document.getElementById('format-standard') as HTMLButtonElement;
+  /** 当前赛制（获胜分数线）：R 重开保持，终局可按 C 回选择层更换 */
+  let format: 6 | 21 = 6;
+  const showFormatMenu = (): void => {
+    flow = 'menu';
+    game.world.player.setMood('idle');
+    game.world.ai.setMood('idle');
+    hud.clearMessage();
+    formatOverlay.hidden = false;
+  };
+
   // ---- 开始 / 暂停 / 重开 ----
-  const startGame = (): void => {
+  const startGame = (nextFormat: 6 | 21 = format): void => {
+    format = nextFormat;
     sound.ensure(); // AudioContext 必须在用户手势里创建
+    rally.match.winScore = format;
+    rally.reset();
+    hud.setScore(0, 0);
+    game.world.player.setMood('idle');
+    game.world.ai.setMood('idle');
+    formatOverlay.hidden = true;
     flow = 'playing';
     hud.clearMessage();
   };
+  formatQuick.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startGame(6);
+  });
+  formatStandard.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startGame(21);
+  });
   window.addEventListener('keydown', (e) => {
     sound.ensure(); // 任何首次按键都尝试解锁音频（引导自动开球路径）
     keysDown.add(e.code);
@@ -154,7 +183,7 @@ async function bootstrap(): Promise<void> {
       e.preventDefault();
       if (flow === 'menu') startGame();
       else if (flow === 'tutorial') {
-        tutorial.skip(); // onStepChange('done') 会触发 startGame
+        tutorial.skip(); // onStepChange('done') 会触发 showFormatMenu
       } else if (flow === 'playing') {
         flow = 'paused';
         hud.showMessage('已暂停\n空格 继续 · R 重开');
@@ -164,13 +193,9 @@ async function bootstrap(): Promise<void> {
       }
       // matchEnd 下空格无效，按 R 开新局
     } else if (e.code === 'KeyR' && flow !== 'menu' && flow !== 'tutorial') {
-      rally.reset();
-      movement.reset();
-      hud.setScore(0, 0);
-      game.world.player.setMood('idle');
-      game.world.ai.setMood('idle');
-      flow = 'playing';
-      hud.clearMessage();
+      startGame(); // 重开保持当前赛制
+    } else if (e.code === 'KeyC' && flow === 'matchEnd') {
+      showFormatMenu(); // 终局后可换赛制
     }
   });
   window.addEventListener('pointerdown', () => {
@@ -213,7 +238,7 @@ async function bootstrap(): Promise<void> {
   tutorial.onStepChange = (step) => {
     if (step === 'done') {
       setSketch(null);
-      startGame();
+      showFormatMenu(); // 引导完成 → 赛制选择（默认 6 分快局）
     } else {
       setSketch(tutorial.sketch);
       hud.showMessage(`${tutorial.prompt}\n\n（空格 跳过引导）`);
@@ -222,7 +247,7 @@ async function bootstrap(): Promise<void> {
   if (TUTORIAL_ENABLED) {
     enterTutorial();
   } else {
-    hud.showMessage('准备就绪！\n空格 / 点击 开始\n空手：握拳=击打 · 连握=扣球 · 移动=跑位\n按 H 查看帮助');
+    showFormatMenu();
   }
 
   let lastDetectAt = 0;

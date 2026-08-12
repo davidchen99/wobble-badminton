@@ -31,7 +31,7 @@ export class RallyManager {
   onPoint: ((scorer: Side, scores: Record<Side, number>) => void) | null = null;
   /** 球的物理接触事件回调（音效用）：触网 / 落地 */
   onContact: ((kind: 'net' | 'ground') => void) | null = null;
-  /** 一方到达 21 分、比赛结束时回调 */
+  /** 一方到达获胜分数线（6/21，见 MatchState.winScore）、比赛结束时回调 */
   onMatchEnd: ((winner: Side, scores: Record<Side, number>) => void) | null = null;
 
   private shuttle: Shuttle;

@@ -34,14 +34,26 @@ describe('MatchState', () => {
     expect(m.server).toBe('player');
   });
 
-  it('先到 21 分获胜，终局后不再计分', () => {
+  it('默认 6 分快局：先到 6 分获胜，终局后不再计分', () => {
     const m = new MatchState();
-    for (let i = 0; i < 20; i++) m.awardPoint('player');
+    for (let i = 0; i < 5; i++) m.awardPoint('player');
     expect(m.winner).toBeNull();
     m.awardPoint('player');
     expect(m.winner).toBe('player');
     m.awardPoint('ai'); // 终局后无效
     expect(m.scores.ai).toBe(0);
+  });
+
+  it('可选 21 分标准赛：winScore 可调且 reset 后保持', () => {
+    const m = new MatchState();
+    m.winScore = 21;
+    for (let i = 0; i < 20; i++) m.awardPoint('player');
+    expect(m.winner).toBeNull();
+    m.awardPoint('player');
+    expect(m.winner).toBe('player');
+    m.reset();
+    expect(m.winner).toBeNull();
+    expect(m.winScore).toBe(21);
   });
 
   it('reset 清空比分与胜负', () => {

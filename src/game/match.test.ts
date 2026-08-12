@@ -33,4 +33,23 @@ describe('MatchState', () => {
     expect(m.scores).toEqual({ player: 1, ai: 2 });
     expect(m.server).toBe('player');
   });
+
+  it('先到 21 分获胜，终局后不再计分', () => {
+    const m = new MatchState();
+    for (let i = 0; i < 20; i++) m.awardPoint('player');
+    expect(m.winner).toBeNull();
+    m.awardPoint('player');
+    expect(m.winner).toBe('player');
+    m.awardPoint('ai'); // 终局后无效
+    expect(m.scores.ai).toBe(0);
+  });
+
+  it('reset 清空比分与胜负', () => {
+    const m = new MatchState();
+    for (let i = 0; i < 21; i++) m.awardPoint('ai');
+    m.reset();
+    expect(m.winner).toBeNull();
+    expect(m.scores).toEqual({ player: 0, ai: 0 });
+    expect(m.server).toBe('player');
+  });
 });

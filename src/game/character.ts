@@ -29,6 +29,22 @@ export class WobbleCharacter {
   readonly armR = new THREE.Group();
 
   private idlePhase = Math.random() * Math.PI * 2;
+  private mood: 'idle' | 'celebrate' | 'defeat' = 'idle';
+  /** 待机姿态基准值（setMood 复位用） */
+  private static readonly REST = { armLz: 0.35, armRz: -0.35 };
+
+  /** 结算情绪：celebrate 乱跳庆祝 / defeat 坐地发呆 / idle 恢复待机 */
+  setMood(mood: 'idle' | 'celebrate' | 'defeat'): void {
+    this.mood = mood;
+    if (mood === 'idle') {
+      this.squashG.scale.set(1, 1, 1);
+      this.squashG.rotation.set(0, 0, 0);
+      this.headG.rotation.set(0, 0, 0);
+      this.armL.rotation.set(0, 0, WobbleCharacter.REST.armLz);
+      this.armR.rotation.set(-0.2, 0, WobbleCharacter.REST.armRz);
+      this.bodyG.position.y = 0;
+    }
+  }
 
   constructor(options: CharacterOptions) {
     const color = options.color;
@@ -86,9 +102,28 @@ export class WobbleCharacter {
     this.group.rotation.y = options.facing ?? 0;
   }
 
-  /** 待机呼吸/摇晃（喜剧感但不能抢输入响应，幅度小） */
+  /** 待机/庆祝/失败动作（喜剧感但不能抢输入响应，幅度小） */
   updateIdle(time: number): void {
     const t = time + this.idlePhase;
+    if (this.mood === 'celebrate') {
+      // 胜利乱跳 + 双臂举起
+      this.bodyG.position.y = Math.abs(Math.sin(t * 6)) * 0.32;
+      this.bodyG.rotation.z = Math.sin(t * 3) * 0.08;
+      this.armR.rotation.set(-2.5, 0, -0.4);
+      this.armL.rotation.set(-2.5, 0, 0.4);
+      this.headG.rotation.z = Math.sin(t * 6) * 0.08;
+      return;
+    }
+    if (this.mood === 'defeat') {
+      // 失败坐地发呆：下沉压扁 + 头低垂 + 双臂垂落
+      this.bodyG.position.y = -0.18;
+      this.squashG.scale.y = 0.78;
+      this.headG.rotation.x = 0.35;
+      this.armR.rotation.set(0.15, 0, -0.15);
+      this.armL.rotation.set(0.15, 0, 0.15);
+      this.bodyG.rotation.z = Math.sin(t * 0.9) * 0.02;
+      return;
+    }
     this.bodyG.position.y = Math.sin(t * 2.1) * 0.02;
     this.bodyG.rotation.z = Math.sin(t * 1.3) * 0.03;
     this.headG.rotation.z = Math.sin(t * 1.3 + 0.6) * 0.05;

@@ -22,7 +22,7 @@ const DEBUG_DEFAULT_OPEN = URL_PARAMS.get('debug') === '1';
 /** 新手引导默认开启，?tutorial=0 跳过（老玩家/调试） */
 const TUTORIAL_ENABLED = URL_PARAMS.get('tutorial') !== '0';
 
-type Flow = 'menu' | 'tutorial' | 'playing' | 'paused';
+type Flow = 'menu' | 'tutorial' | 'playing' | 'paused' | 'matchEnd';
 
 async function bootstrap(): Promise<void> {
   const app = document.getElementById('app');
@@ -88,6 +88,15 @@ async function bootstrap(): Promise<void> {
     hud.setScore(scores.player, scores.ai);
     sound.point(scorer);
   };
+  rally.onMatchEnd = (winner, scores) => {
+    flow = 'matchEnd';
+    const win = winner === 'player';
+    hud.showMessage(
+      `${win ? '你赢了！' : 'AI 获胜'}  ${scores.player} : ${scores.ai}\n按 R 再来一局`,
+    );
+    game.world.player.setMood(win ? 'celebrate' : 'defeat');
+    game.world.ai.setMood(win ? 'defeat' : 'celebrate');
+  };
   rally.onContact = (kind) => {
     if (flow !== 'playing') return;
     if (kind === 'net') sound.net();
@@ -121,14 +130,17 @@ async function bootstrap(): Promise<void> {
       } else if (flow === 'playing') {
         flow = 'paused';
         hud.showMessage('已暂停\n空格 继续 · R 重开');
-      } else {
+      } else if (flow === 'paused') {
         flow = 'playing';
         hud.clearMessage();
       }
+      // matchEnd 下空格无效，按 R 开新局
     } else if (e.code === 'KeyR' && flow !== 'menu' && flow !== 'tutorial') {
       rally.reset();
       movement.reset();
       hud.setScore(0, 0);
+      game.world.player.setMood('idle');
+      game.world.ai.setMood('idle');
       flow = 'playing';
       hud.clearMessage();
     }

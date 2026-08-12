@@ -18,15 +18,24 @@ export class MatchState {
   readonly scores: Record<Side, number> = { player: 0, ai: 0 };
   /** 下一球由谁发（初始玩家发） */
   server: Side = 'player';
+  /** 获胜分数线（M8 定稿：简化 21 分制，无 deuce） */
+  readonly winScore = 21;
+  /** 已分出胜负时的胜方 */
+  winner: Side | null = null;
 
   awardPoint(winner: Side): void {
+    if (this.winner) return; // 终局后不再计分
     this.scores[winner] += 1;
     this.server = winner;
+    if (this.scores[winner] >= this.winScore) {
+      this.winner = winner;
+    }
   }
 
   reset(): void {
     this.scores.player = 0;
     this.scores.ai = 0;
     this.server = 'player';
+    this.winner = null;
   }
 }

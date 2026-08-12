@@ -11,7 +11,7 @@ const SMASH_WINDOW = 0.6;
 /** 扣球基础飞行时间（秒）：比普通回球（默认 1.8）快得多、更平 */
 const SMASH_FLIGHT_TIME = 0.7;
 
-type RallyPhase = 'waitingServe' | 'flying' | 'pointEnd';
+type RallyPhase = 'waitingServe' | 'flying' | 'pointEnd' | 'matchEnd';
 
 export interface RallyHomes {
   player: Vec3;
@@ -31,6 +31,8 @@ export class RallyManager {
   onPoint: ((scorer: Side, scores: Record<Side, number>) => void) | null = null;
   /** 球的物理接触事件回调（音效用）：触网 / 落地 */
   onContact: ((kind: 'net' | 'ground') => void) | null = null;
+  /** 一方到达 21 分、比赛结束时回调 */
+  onMatchEnd: ((winner: Side, scores: Record<Side, number>) => void) | null = null;
 
   private shuttle: Shuttle;
   private homes: RallyHomes;
@@ -140,6 +142,10 @@ export class RallyManager {
           this.timer = SERVE_DELAY * 0.5;
         }
         break;
+
+      case 'matchEnd':
+        // 终局：球停在落地处，等待 R 重开（reset 会切回 waitingServe）
+        break;
     }
 
     // 同步可视对象
@@ -175,6 +181,11 @@ export class RallyManager {
     this.pendingScorer = null;
     this.match.awardPoint(scorer);
     this.onPoint?.(scorer, { ...this.match.scores });
+    if (this.match.winner) {
+      this.phase = 'matchEnd';
+      this.onMatchEnd?.(this.match.winner, { ...this.match.scores });
+      return;
+    }
     this.phase = 'pointEnd';
     this.timer = SERVE_DELAY;
   }

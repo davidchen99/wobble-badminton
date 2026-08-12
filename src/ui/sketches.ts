@@ -4,6 +4,8 @@
  *
  * startSketch 启动一个自循环小动画，返回停止函数；zoom 可整体放大画面
  * （引导层用大画布 + zoom=2，帮助层用小画布默认 1）。
+ * M11：引导层（大画布）的握拳/连握简图升级为左右对照——
+ * 左侧手部动作，右侧简笔小人同步演示游戏内结果（握一下=挥拍、握两下=跳扣）。
  */
 
 export type SketchKind = 'showHand' | 'fist' | 'doubleFist' | 'move' | 'wave';
@@ -61,6 +63,51 @@ function drawHand(
   ctx.restore();
 }
 
+/**
+ * 画一个简笔小人（M11 引导对照：演示手部动作在游戏里的结果）。
+ * armAngle 为持拍臂角度（弧度，0=水平向前，负=上举）；jumpY 为跳起高度。
+ */
+function drawPerson(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  groundY: number,
+  armAngle: number,
+  jumpY: number,
+): void {
+  ctx.save();
+  ctx.translate(x, groundY - jumpY);
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  // 头
+  ctx.beginPath();
+  ctx.arc(0, -34, 7, 0, Math.PI * 2);
+  ctx.stroke();
+  // 躯干
+  ctx.beginPath();
+  ctx.moveTo(0, -26);
+  ctx.lineTo(0, -12);
+  ctx.stroke();
+  // 腿
+  ctx.beginPath();
+  ctx.moveTo(0, -12);
+  ctx.lineTo(-6, 0);
+  ctx.moveTo(0, -12);
+  ctx.lineTo(6, 0);
+  ctx.stroke();
+  // 持拍臂 + 拍面小圆
+  const hx = Math.cos(armAngle) * 13;
+  const hy = Math.sin(armAngle) * 13;
+  ctx.beginPath();
+  ctx.moveTo(0, -24);
+  ctx.lineTo(hx, -24 + hy);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(hx + Math.cos(armAngle) * 6, -24 + hy + Math.sin(armAngle) * 6, 5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 /** 平滑台阶：holdTime 保持，edgeTime 过渡 */
 function gripPhase(t: number, period: number): number {
   const p = (t % period) / period;
@@ -74,6 +121,8 @@ function render(ctx: CanvasRenderingContext2D, kind: SketchKind, t: number, w: n
   ctx.clearRect(0, 0, w, h);
   const cx = w / 2;
   const cy = h / 2;
+  /** 大画布（引导层）启用左右对照小人；小画布（帮助层）保持单手居中 */
+  const duo = w >= 200;
 
   switch (kind) {
     case 'showHand': {
@@ -88,15 +137,40 @@ function render(ctx: CanvasRenderingContext2D, kind: SketchKind, t: number, w: n
       break;
     }
     case 'fist': {
-      drawHand(ctx, cx, cy, gripPhase(t, 1.4), 1.2);
+      const hx = duo ? cx - 42 : cx;
+      drawHand(ctx, hx, cy, gripPhase(t, 1.4), 1.2);
+      if (duo) {
+        // 右侧小人同步演示：握拳瞬间 = 挥拍击打
+        const p = (t % 1.4) / 1.4;
+        let arm: number;
+        if (p < 0.4) arm = -0.4 - p * 2; // 后摆蓄力
+        else if (p < 0.6) arm = -1.2 + ((p - 0.4) / 0.2) * 2.4; // 快速挥出
+        else arm = 1.2 - ((p - 0.6) / 0.4) * 1.6; // 收势回位
+        drawPerson(ctx, cx + 45, cy + 66, arm, 0);
+      }
       break;
     }
     case 'doubleFist': {
-      drawHand(ctx, cx, cy, gripPhase(t, 0.7), 1.2);
+      const hx = duo ? cx - 42 : cx;
+      drawHand(ctx, hx, cy, gripPhase(t, 0.7), 1.2);
       ctx.fillStyle = ACCENT;
       ctx.font = 'bold 18px system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText('×2', cx + 34, cy - 18);
+      ctx.fillText('×2', hx + 34, cy - 18);
+      if (duo) {
+        // 右侧小人同步演示：连握 = 跳起扣杀（节奏更快）+ 球斜向下飞出
+        const p = (t % 0.9) / 0.9;
+        const jumpY = 4 * 16 * p * (1 - p);
+        const arm = p < 0.35 ? -2.2 + p * 1.2 : -1.8 + ((p - 0.35) / 0.65) * 3.4; // 举起→猛扣
+        drawPerson(ctx, cx + 45, cy + 66, arm, jumpY);
+        if (p > 0.45) {
+          const f = (p - 0.45) / 0.55;
+          ctx.fillStyle = ACCENT;
+          ctx.beginPath();
+          ctx.arc(cx + 57 + f * 52, cy + 14 + f * 46, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
       break;
     }
     case 'move': {

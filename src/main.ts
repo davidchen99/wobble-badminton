@@ -155,6 +155,10 @@ async function bootstrap(): Promise<void> {
   rally.onPoint = (scorer, scores) => {
     hud.setScore(scores.player, scores.ai);
     sound.point(scorer);
+    // M13：观众欢呼（玩家得分全场嗨，AI 得分小骚动）
+    const heat = scorer === 'player' ? 1 : 0.35;
+    game.world.crowd.cheer(heat);
+    sound.cheer(heat);
   };
   /** 本场次是否已拿过首胜奖杯（M9：仅首次获胜有领奖时刻，刷新页面重置） */
   let firstWinDone = false;
@@ -296,6 +300,7 @@ async function bootstrap(): Promise<void> {
     aiController.params.smashRate = lv.smashRate;
     game.world.ai.setHat(lv.hat, lv.hatColor);
     game.world.ai.setTint(lv.bodyColor ?? 0x4fc3f7, lv.glow ?? 0);
+    game.world.crowd.setLevel(t, i); // M13：观众规模即进度条
     hud.setLevel(TRACKS[t].name, i + 1, lv.name);
   };
   applyLevel('rookie', 0); // 初始新手轨第一关（菜单背景里就能看到黑帽对手）
@@ -477,6 +482,8 @@ async function bootstrap(): Promise<void> {
             if (rally.smash()) {
               playerController.jumpSmash();
               sound.hit(3.5);
+              sound.cheer(0.8); // M13：扣杀成功观众欢呼
+              game.world.crowd.cheer(0.8);
               shuttleFlash = 1.6;
             }
           } else {

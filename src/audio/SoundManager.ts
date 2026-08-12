@@ -93,6 +93,22 @@ export class SoundManager {
     }
   }
 
+  /**
+   * 人群欢呼（M13）：宽频噪声 swell + 几声口哨点缀，平时保持安静。
+   * strength 0~1：玩家得分/扣杀更嗨，AI 得分只给一声低落的小骚动。
+   */
+  cheer(strength = 1): void {
+    if (!this.ready()) return;
+    const s = Math.min(1, Math.max(0, strength));
+    // 人群噪声主体：带通上扫的"哗——"
+    this.noise({ f0: 600, f1: 1500, dur: 0.6 + 0.4 * s, peak: 0.06 + 0.16 * s, q: 0.5 });
+    // 口哨点缀（仅较嗨时）
+    if (s > 0.45) {
+      this.tone({ f0: 1900 + Math.random() * 300, f1: 2400, dur: 0.16, type: 'sine', peak: 0.05 * s, delay: 0.1 });
+      this.tone({ f0: 2300 + Math.random() * 300, f1: 1700, dur: 0.14, type: 'sine', peak: 0.04 * s, delay: 0.28 });
+    }
+  }
+
   // ---- 内部 ----
 
   private ready(): boolean {

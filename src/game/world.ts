@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { WobbleCharacter } from './character';
 import { buildCourt } from './court';
+import { Crowd } from './crowd';
 import { buildPodium } from './podium';
 import { Shuttle } from './shuttle';
 import { buildTrophy } from './trophy';
@@ -19,6 +20,8 @@ export interface World {
   podium: THREE.Group;
   /** 领奖台上的第三名 NPC（M10）：默认隐藏，通关时戴上黑帽站台 */
   npc: WobbleCharacter;
+  /** 递进式观众（M13）：数量随关卡增长，得分时集体欢呼 */
+  crowd: Crowd;
   update(dt: number, time: number): void;
 }
 
@@ -61,6 +64,9 @@ export function buildWorld(scene: THREE.Scene): World {
   npc.group.visible = false;
   scene.add(npc.group);
 
+  const crowd = new Crowd();
+  scene.add(crowd.group);
+
   return {
     player,
     ai,
@@ -68,9 +74,11 @@ export function buildWorld(scene: THREE.Scene): World {
     trophy,
     podium,
     npc,
-    update(_dt, time) {
+    crowd,
+    update(dt, time) {
       player.updateIdle(time);
       ai.updateIdle(time + 1.7);
+      crowd.update(dt, time);
       if (npc.group.visible) npc.updateIdle(time + 0.9);
       if (trophy.visible) {
         // 领奖时刻：奖杯悬浮 + 缓慢旋转

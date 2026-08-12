@@ -1,6 +1,6 @@
-import type { SwingDirection } from '../camera/GestureDetector';
+import type { SketchKind } from '../ui/sketches';
 
-export type TutorialStep = 'showHand' | 'swingLeft' | 'swingRight' | 'ready' | 'done';
+export type TutorialStep = 'showHand' | 'grip' | 'doubleGrip' | 'ready' | 'done';
 
 /** 举手持续识别所需时间（秒） */
 const HAND_HOLD_SECONDS = 0.5;
@@ -8,13 +8,13 @@ const HAND_HOLD_SECONDS = 0.5;
 const READY_COUNTDOWN = 2.5;
 
 /**
- * 新手引导状态机（GAME_DESIGN：4 步，每步实时识别反馈，完成才开赛）。
+ * 新手引导状态机（M8 握拳版，GAME_DESIGN：4 步，每步实时识别反馈 + 简图动画）。
  * 纯逻辑，不碰 DOM，可单元测试。
  *
- *  1. showHand   举手/握拳/握拍让摄像头看到（骨架点亮）
- *  2. swingLeft  向左挥一次
- *  3. swingRight 向右挥一次
- *  4. ready      站位提示 + 倒计时，随后自动开球
+ *  1. showHand    举手让摄像头看到（骨架点亮；期间完成手大小基准校准）
+ *  2. grip        握拳一次 = 击打
+ *  3. doubleGrip  连握两次 = 扣球
+ *  4. ready       站位/移动提示 + 倒计时，随后自动开球
  */
 export class Tutorial {
   step: TutorialStep = 'showHand';
@@ -33,7 +33,7 @@ export class Tutorial {
     switch (this.step) {
       case 'showHand':
         this.handHeld = handPresent ? this.handHeld + dt : 0;
-        if (this.handHeld >= HAND_HOLD_SECONDS) this.goto('swingLeft');
+        if (this.handHeld >= HAND_HOLD_SECONDS) this.goto('grip');
         break;
       case 'ready':
         this.readyTimer -= dt;
@@ -44,27 +44,50 @@ export class Tutorial {
     }
   }
 
-  /** 检测到挥拍时调用 */
-  onSwing(direction: SwingDirection): void {
-    if (this.step === 'swingLeft' && direction === 'left') this.goto('swingRight');
-    else if (this.step === 'swingRight' && direction === 'right') this.goto('ready');
+  /** 检测到握拳时调用（isDouble 表示在连握窗口内） */
+  onGrip(isDouble: boolean): void {
+    if (this.step === 'grip') this.goto('doubleGrip');
+    else if (this.step === 'doubleGrip' && isDouble) this.goto('ready');
   }
 
   skip(): void {
     this.goto('done');
   }
 
+  /** 从帮助层重新进入引导 */
+  reset(): void {
+    this.handHeld = 0;
+    this.readyTimer = READY_COUNTDOWN;
+    this.goto('showHand');
+  }
+
+  /** 当前步骤配的动作简图 */
+  get sketch(): SketchKind | null {
+    switch (this.step) {
+      case 'showHand':
+        return 'showHand';
+      case 'grip':
+        return 'fist';
+      case 'doubleGrip':
+        return 'doubleFist';
+      case 'ready':
+        return 'move';
+      case 'done':
+        return null;
+    }
+  }
+
   /** 当前步骤的引导文案 */
   get prompt(): string {
     switch (this.step) {
       case 'showHand':
-        return '新手引导 第 1/4 步\n\n举起你的手（可握拳或握拍）\n让摄像头看到你 —— 右下角出现骨架即识别成功';
-      case 'swingLeft':
-        return '第 2/4 步 ✓ 已识别到你的手\n\n向左挥一次 ←\n像挥拍一样，动作快一点';
-      case 'swingRight':
-        return '第 3/4 步 ✓ 左挥成功\n\n向右挥一次 →';
+        return '新手引导 第 1/4 步\n\n举起你的手，让摄像头看到你\n右下角出现骨架即识别成功';
+      case 'grip':
+        return '第 2/4 步 ✓ 已识别到你的手\n\n握拳一次 = 击打\n张开手 → 快速握紧，试一下';
+      case 'doubleGrip':
+        return '第 3/4 步 ✓ 握拳击打成功\n\n连握两次 = 扣球\n握紧→松开→再握紧，动作快一点';
       case 'ready':
-        return '第 4/4 步 ✓ 右挥成功\n\n后退半步，让上半身进入画面\n身体左右移动 = 角色跑位 · 球来了就挥拍！马上开球…';
+        return '第 4/4 步 ✓ 扣球成功\n\n手左右移 = 跑位 · 手往前伸/收回 = 前后移动\n马上开球…';
       case 'done':
         return '';
     }

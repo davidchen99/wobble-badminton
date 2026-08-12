@@ -12,7 +12,9 @@ import { Tutorial } from './game/tutorial';
 import { AI_HOME, PLAYER_HOME } from './game/world';
 import { PlayerController } from './player/PlayerController';
 import { DebugPanel } from './ui/DebugPanel';
+import { HelpPanel } from './ui/HelpPanel';
 import { Hud } from './ui/hud';
+import { startSketch, type SketchKind } from './ui/sketches';
 
 /** 推理间隔下限（毫秒）：追踪不必每渲染帧执行，与渲染解耦（TECH_SPEC） */
 const DETECT_INTERVAL_MS = 33;
@@ -69,6 +71,27 @@ async function bootstrap(): Promise<void> {
   let controlMode: 'bare' | 'keyboard' = 'bare';
   const keysDown = new Set<string>();
 
+  // ---- 新手引导的简图动画管理 ----
+  const tutorialSketchEl = document.getElementById('tutorial-sketch') as HTMLCanvasElement;
+  let stopSketch: (() => void) | null = null;
+  const setSketch = (kind: SketchKind | null): void => {
+    stopSketch?.();
+    stopSketch = null;
+    tutorialSketchEl.hidden = kind === null;
+    if (kind) stopSketch = startSketch(tutorialSketchEl, kind);
+  };
+
+  // ---- 帮助层（含"重新进入新手引导"入口） ----
+  const enterTutorial = (): void => {
+    controlMode = 'bare'; // 引导教的是空手模式
+    hud.setMode(controlMode);
+    tutorial.reset();
+    flow = 'tutorial';
+    setSketch(tutorial.sketch);
+    hud.showMessage(`${tutorial.prompt}\n\n（空格 跳过引导）`);
+  };
+  const help = new HelpPanel(enterTutorial);
+
   // ---- 击球反馈：声音 + 镜头冲击 + 球闪 ----
   let shuttleFlash = 0;
   const onHit = (speed: number): void => {
@@ -114,6 +137,11 @@ async function bootstrap(): Promise<void> {
     keysDown.add(e.code);
     if (e.code === 'Backquote') {
       debug.toggle();
+      return;
+    }
+    if (e.code === 'KeyH' || e.code === 'F1') {
+      e.preventDefault();
+      help.toggle();
       return;
     }
     if (e.code === 'KeyM') {
@@ -183,14 +211,18 @@ async function bootstrap(): Promise<void> {
   console.info(`[tracking] delegate = ${tracker.delegate}`);
 
   tutorial.onStepChange = (step) => {
-    if (step === 'done') startGame();
-    else hud.showMessage(`${tutorial.prompt}\n\n（空格 跳过引导）`);
+    if (step === 'done') {
+      setSketch(null);
+      startGame();
+    } else {
+      setSketch(tutorial.sketch);
+      hud.showMessage(`${tutorial.prompt}\n\n（空格 跳过引导）`);
+    }
   };
   if (TUTORIAL_ENABLED) {
-    flow = 'tutorial';
-    hud.showMessage(`${tutorial.prompt}\n\n（空格 跳过引导）`);
+    enterTutorial();
   } else {
-    hud.showMessage('准备就绪！\n空格 / 点击 开始\n挥动手臂 = 挥拍击球 · R 重开');
+    hud.showMessage('准备就绪！\n空格 / 点击 开始\n空手：握拳=击打 · 连握=扣球 · 移动=跑位\n按 H 查看帮助');
   }
 
   let lastDetectAt = 0;
@@ -224,13 +256,16 @@ async function bootstrap(): Promise<void> {
           playerController.swing({ direction: 'right', speed: swing.speed, time: swing.time });
         }
         if (flow === 'tutorial') {
+          // 引导中挥动只作角色演示（教学用握拳判定，见下方 grip）
           playerController.swing(swing);
-          tutorial.onSwing(swing.direction);
         }
       }
 
       // 握拳 = 击打（仅空手模式；持物时手一直握着，握拳检测无意义）
       const grip = controlMode === 'bare' ? fist.update(hand.landmarks, t / 1000) : null;
+      if (grip && flow === 'tutorial') {
+        tutorial.onGrip(grip.double);
+      }
       if (grip && flow === 'playing') {
         if (grip.double) {
           // 连握扣球：给刚打出去的球补刀
@@ -306,9 +341,18 @@ async function bootstrap(): Promise<void> {
         }
       }
     } else if (flow === 'tutorial') {
-      // 引导中角色也响应挥拍（纯演示，不碰球），并实时反馈识别状态
+      // 引导中角色响应挥拍演示；同时喂移动模块完成手大小基准校准（不应用输出）
       playerController.update(dt);
       tutorial.update(dt, lastHand !== null);
+      const speed = Math.hypot(gesture.velocity.x, gesture.velocity.y);
+      movement.update(
+        lastHand
+          ? { x: lastHand.palm.x, y: lastHand.palm.y, size: handSize(lastHand) }
+          : null,
+        speed,
+        dt,
+        fist.isFist,
+      );
     }
 
     // 击球闪光衰减

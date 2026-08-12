@@ -30,7 +30,7 @@
       #hud-top {
         position: absolute;
         top: 10px;
-        left: 12px;
+        left: 64px;
         font-size: 13px;
         line-height: 1.6;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
@@ -138,6 +138,113 @@
         text-align: right;
         font-family: ui-monospace, Consolas, monospace;
       }
+      /* 帮助按钮（左上角常驻） */
+      #help-btn {
+        position: absolute;
+        top: 10px;
+        left: 12px;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        border: 2px solid rgba(232, 234, 238, 0.7);
+        background: rgba(20, 22, 28, 0.75);
+        color: #e8eaee;
+        font-size: 20px;
+        font-weight: 700;
+        cursor: pointer;
+        pointer-events: auto;
+      }
+      #help-btn:hover {
+        background: rgba(60, 64, 74, 0.9);
+      }
+      /* 帮助层 */
+      #help-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(10, 12, 16, 0.72);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: auto;
+      }
+      #help-overlay[hidden] {
+        display: none;
+      }
+      #help-card {
+        max-width: 720px;
+        max-height: 86vh;
+        overflow-y: auto;
+        padding: 22px 28px;
+        border-radius: 12px;
+        background: rgba(24, 27, 34, 0.97);
+        box-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
+      }
+      #help-card h2 {
+        margin: 0 0 14px;
+        font-size: 20px;
+      }
+      #help-sections {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .help-card-section {
+        flex: 1 1 180px;
+        min-width: 170px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .help-card-section h3 {
+        margin: 0 0 8px;
+        font-size: 14px;
+        color: #ffd23f;
+      }
+      .help-card-section ul {
+        margin: 8px 0 0;
+        padding-left: 18px;
+        font-size: 13px;
+        line-height: 1.9;
+      }
+      .help-sketch {
+        display: block;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+      }
+      .help-actions {
+        margin-top: 18px;
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+      }
+      .help-actions button {
+        padding: 9px 18px;
+        border-radius: 8px;
+        border: none;
+        font-size: 14px;
+        cursor: pointer;
+        background: #3a7d44;
+        color: #fff;
+      }
+      .help-actions button:hover {
+        background: #4e8f52;
+      }
+      .help-actions button#help-close {
+        background: #455a64;
+      }
+      /* 新手引导简图（信息框上方） */
+      #tutorial-sketch {
+        position: absolute;
+        top: 16%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(20, 22, 28, 0.85);
+        border-radius: 12px;
+      }
+      #tutorial-sketch[hidden] {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -158,6 +265,18 @@
       <div id="cam-preview" title="点击放大/缩小">
         <canvas id="cam-overlay" width="480" height="360"></canvas>
       </div>
+      <button id="help-btn" title="帮助 (H)">?</button>
+      <div id="help-overlay" hidden>
+        <div id="help-card">
+          <h2>怎么玩 Wobble Badminton</h2>
+          <div id="help-sections"></div>
+          <div class="help-actions">
+            <button id="help-tutorial">重新进入新手引导</button>
+            <button id="help-close">关闭 (H)</button>
+          </div>
+        </div>
+      </div>
+      <canvas id="tutorial-sketch" width="140" height="140" hidden></canvas>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

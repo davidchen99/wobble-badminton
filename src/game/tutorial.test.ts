@@ -1,61 +1,66 @@
 import { describe, expect, it } from 'vitest';
 import { Tutorial } from './tutorial';
 
-describe('Tutorial 新手引导', () => {
+describe('Tutorial 新手引导（握拳版）', () => {
   it('完整走完 4 步后结束', () => {
     const t = new Tutorial();
     expect(t.step).toBe('showHand');
 
-    // 举手 0.5 秒
-    for (let i = 0; i < 40; i++) t.update(1 / 60, true);
-    expect(t.step).toBe('swingLeft');
+    for (let i = 0; i < 40; i++) t.update(1 / 60, true); // 举手 0.5s+
+    expect(t.step).toBe('grip');
 
-    t.onSwing('left');
-    expect(t.step).toBe('swingRight');
-    t.onSwing('right');
+    t.onGrip(false); // 握拳一次
+    expect(t.step).toBe('doubleGrip');
+    t.onGrip(true); // 连握
     expect(t.step).toBe('ready');
 
     for (let i = 0; i < 60 * 3; i++) t.update(1 / 60, true);
     expect(t.done).toBe(true);
   });
 
-  it('举手中断会重新计时', () => {
+  it('举手中断重新计时', () => {
     const t = new Tutorial();
-    for (let i = 0; i < 20; i++) t.update(1 / 60, true); // ~0.33s
-    t.update(1 / 60, false); // 丢失 → 清零
-    for (let i = 0; i < 20; i++) t.update(1 / 60, true); // 又 0.33s，不够
+    for (let i = 0; i < 20; i++) t.update(1 / 60, true);
+    t.update(1 / 60, false);
+    for (let i = 0; i < 20; i++) t.update(1 / 60, true);
     expect(t.step).toBe('showHand');
-    for (let i = 0; i < 15; i++) t.update(1 / 60, true); // 补够 0.5s+
-    expect(t.step).toBe('swingLeft');
+    for (let i = 0; i < 15; i++) t.update(1 / 60, true);
+    expect(t.step).toBe('grip');
   });
 
-  it('方向不对不推进，也不回退', () => {
+  it('扣球步骤必须是连握（单握不推进）', () => {
     const t = new Tutorial();
     for (let i = 0; i < 40; i++) t.update(1 / 60, true);
-    t.onSwing('right'); // 要求 left，给 right
-    expect(t.step).toBe('swingLeft');
-    t.onSwing('up');
-    expect(t.step).toBe('swingLeft');
-    t.onSwing('left');
-    expect(t.step).toBe('swingRight');
-    t.onSwing('left'); // 已过了 left 步骤
-    expect(t.step).toBe('swingRight');
+    t.onGrip(false);
+    expect(t.step).toBe('doubleGrip');
+    t.onGrip(false); // 窗口外的普通握拳不算连握
+    expect(t.step).toBe('doubleGrip');
+    t.onGrip(true);
+    expect(t.step).toBe('ready');
   });
 
-  it('skip 直接结束', () => {
+  it('skip 直接结束；reset 从头开始', () => {
     const t = new Tutorial();
     t.skip();
     expect(t.done).toBe(true);
+    t.reset();
+    expect(t.step).toBe('showHand');
+    expect(t.done).toBe(false);
   });
 
-  it('步骤切换触发 onStepChange 回调', () => {
+  it('步骤切换触发 onStepChange，且每步有对应简图', () => {
     const t = new Tutorial();
     const seen: string[] = [];
     t.onStepChange = (s) => seen.push(s);
+    expect(t.sketch).toBe('showHand');
     for (let i = 0; i < 40; i++) t.update(1 / 60, true);
-    t.onSwing('left');
-    t.onSwing('right');
+    expect(t.sketch).toBe('fist');
+    t.onGrip(false);
+    expect(t.sketch).toBe('doubleFist');
+    t.onGrip(true);
+    expect(t.sketch).toBe('move');
     for (let i = 0; i < 60 * 3; i++) t.update(1 / 60, true);
-    expect(seen).toEqual(['swingLeft', 'swingRight', 'ready', 'done']);
+    expect(t.sketch).toBeNull();
+    expect(seen).toEqual(['grip', 'doubleGrip', 'ready', 'done']);
   });
 });

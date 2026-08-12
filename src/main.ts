@@ -438,6 +438,31 @@ async function bootstrap(): Promise<void> {
       preview.classList.toggle('large');
     });
 
+    // 黑屏自检：摄像头"能打开但全黑"（物理遮挡开关/隐私模式）比报错更常见也更难排查，
+    // 采样 5 帧平均亮度，全黑直接给针对性指引（ThinkShutter / Lenovo 隐私模式 / 相机应用对照）
+    void (async () => {
+      const v = camera!.video;
+      const c = document.createElement('canvas');
+      c.width = 32;
+      c.height = 24;
+      const ctx = c.getContext('2d', { willReadFrequently: true })!;
+      for (let i = 0; i < 5; i++) {
+        await new Promise((r) => setTimeout(r, 350));
+        if (!camera || camera.video.readyState < 2) return; // 相机已被释放，放弃自检
+        ctx.drawImage(v, 0, 0, 32, 24);
+        const d = ctx.getImageData(0, 0, 32, 24).data;
+        let sum = 0;
+        for (let p = 0; p < d.length; p += 4) sum += d[p] + d[p + 1] + d[p + 2];
+        if (sum / (d.length / 4) > 10) return; // 有亮度，画面正常
+      }
+      hud.showError(
+        '摄像头已打开但画面全黑。请依次检查：\n' +
+          '1) 屏幕上方的摄像头物理遮挡开关（ThinkShutter）是否滑开；\n' +
+          '2) Lenovo Vantage / 键盘快捷键的摄像头隐私模式是否关闭；\n' +
+          '3) 打开 Windows 自带"相机"应用——若它也黑屏，则是硬件/驱动问题，与游戏无关。',
+      );
+    })();
+
     hud.showMessage('摄像头已就绪，正在加载手部追踪模型…');
     try {
       tracker = await WorkerTracker.create();

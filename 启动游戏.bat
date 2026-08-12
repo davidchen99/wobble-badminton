@@ -20,10 +20,8 @@ if not errorlevel 1 (
   exit /b 0
 )
 
-rem 延迟 2 秒确保服务器起来后再开浏览器（最小化执行，不影响本窗口）
-start "" /min cmd /c "timeout /t 2 ^>nul && start http://localhost:5173"
-
-call npm run dev -- --strictPort
+rem vite --open：服务器就绪后自动打开浏览器（比定时跳转可靠）
+call npm run dev -- --strictPort --open
 
 echo.
 echo 游戏已停止，按任意键关闭本窗口...

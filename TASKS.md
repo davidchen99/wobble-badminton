@@ -97,9 +97,9 @@
 - [x] 修扣球镜头抖动：扣球只保留小人跳起+音效+球闪光，去掉 camera shake（用户实测反馈）
 - [x] ?demo=1 截图模式：跳过摄像头/模型，直接展示球场静态场景（README/上线页截图用）
 - [x] Pages 子路径兼容：vite base './' + worker/模型/wasm 改相对路径
-- [ ] 游戏截图进 README
-- [ ] LICENSE（MIT）+ MediaPipe Apache 2.0 声明 + README 玩法说明
-- [ ] GitHub 公开仓库 + GitHub Pages 上线（自动部署）
+- [x] 游戏截图进 README
+- [x] LICENSE（MIT）+ MediaPipe Apache 2.0 声明 + README 玩法说明
+- [x] GitHub 公开仓库 + GitHub Pages 上线（gh-pages 分支经典部署，`bash scripts/deploy-pages.sh` 一键更新）
 
 ## MVP Gate（必须真实设备验证）
 - 首轮实测（2026-08-11）未通过项：主线程同步推理导致卡顿冻结；球速过快无法回击；无新手引导不知如何击打；预览画幅太小。→ M7 已修复
@@ -138,3 +138,4 @@
 - M10 实现要点（2026-08-12）：levels.ts 三关配置（flightTime/missRate/reactionMs/returnSpread/smashRate）；character.setHat(cap/crown) 挂 headG；rally.targetSpread 实例化 + trySmashHit（同窗判定、0.7s 压后场）；AI smashRate 每球决策一次、jumpSmash 跳起前摇 0.16s 后 trySmashHit 补刀；podium.ts 金银铜名次台+Canvas 名次牌；showChampion 摆位（玩家 #1、AI #2、黑帽 NPC #3）+ resetArena 复位；关卡进度 nextLevel 驱动（赢晋级/输重战/通关归零），刷新重置无存档。51 测试过。
 - M11 定稿（2026-08-12 深夜，用户确认）：三关实测王冠扣杀过快打不过 → 新手轨整体降难度（首次玩家可通关），扣杀飞行时间按关可配（新手王冠 0.95s）；引导获好评，升级为左右对照（左手部动作 + 右简笔小人结果演示）；扣球跳起更夸张；新增专业轨（紫影/紫电/魔王，同一角色紫色递进 + 荧光感），通关新手王冠播登场动画解锁；localStorage 持久化解锁标记（用户未对小确认点单独表态，按建议默认值落地：解锁持久化 + 紫色递进）。
 - M11 实现要点（2026-08-12）：levels.ts 重构为 TRACKS（rookie/pro，LevelConfig 加 bodyColor/glow/smashFlight）；专业轨数值经设计评审修正（紫影 1.25s ≥ 新手王冠强度，避免解锁后反降难度的心流断点）；character.setTint 走共享 skin 材质（color+emissive 一行换肤荧光）；rally.smashFlightTime 实例化（玩家扣杀仍 0.7s 常量）；sketches 小人仅大画布（w≥200）启用，帮助层小画布保持单手；解锁流=pendingUnlockIntro 标志（R 播登场动画/C 跳过直接解锁），unlockOverlay 为 DOM 呼吸灯层 + applyLevel('pro',0) 让紫影在球场就位；localStorage 键 wobble.proUnlocked，隐私模式 try/catch 容错。51 测试过。
+- M12 上线（2026-08-12）：扣球镜头抖动按实测反馈移除（跳起本身即反馈）；?demo=1/2 截图模式（跳过摄像头，2=领奖台场景），无头 Chrome `--virtual-time-budget=6000` 截图（输出路径须 Windows 绝对路径）；Pages 子路径兼容=vite base './' + worker/模型/wasm 全相对路径。gh token 无 workflow scope → 弃 Actions 自动部署，改 scripts/deploy-pages.sh（临时 index 打包 dist 推 gh-pages 分支，索引路径必须绝对路径）；Pages=legacy source gh-pages/，线上地址 https://davidchen99.github.io/wobble-badminton/（已验证 index/worker/model/wasm 全 200）。

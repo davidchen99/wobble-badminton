@@ -65,6 +65,48 @@
         opacity: 0.85;
         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
       }
+      /* 关卡进度条（M13）：计分板下方极简一排圆点，不抢视线 */
+      #hud-progress {
+        position: absolute;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        opacity: 0.9;
+      }
+      #hud-progress .pg-group {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      #hud-progress .pg-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.18);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+      }
+      #hud-progress .pg-dot.cleared {
+        background: #ffd54f;
+      }
+      #hud-progress .pg-dot.current {
+        background: #ffffff;
+        box-shadow: 0 0 7px #ffffff;
+      }
+      #hud-progress .pg-dot.locked {
+        background: rgba(0, 0, 0, 0.55);
+      }
+      #hud-progress .pg-sep {
+        width: 1px;
+        height: 12px;
+        background: rgba(255, 255, 255, 0.25);
+      }
+      #hud-progress .pg-lock {
+        font-size: 10px;
+        line-height: 1;
+      }
       #hud-message {
         position: absolute;
         top: 50%;
@@ -416,6 +458,7 @@
       </div>
       <div id="hud-score">0 : 0</div>
       <div id="hud-level">第 1 关 · 黑帽新手</div>
+      <div id="hud-progress"></div>
       <div id="hud-message" hidden></div>
       <div id="debug-panel" hidden>
         <pre id="debug-stats"></pre>

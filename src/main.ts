@@ -95,6 +95,9 @@ async function bootstrap(): Promise<void> {
   };
   /** 通关新手轨后待播的专业玩家登场动画 */
   let pendingUnlockIntro = false;
+  /** 各轨已通过关数（M13 进度条；会话内有效，专业解锁即代表新手轨已全通） */
+  let rookieCleared = proUnlocked ? 3 : 0;
+  let proCleared = 0;
 
   // ---- 新手引导层（M9：黑底全屏 + 大号简图动画 + 步骤圆点 + 实时识别反馈） ----
   const tutorialOverlay = document.getElementById('tutorial-overlay') as HTMLElement;
@@ -170,6 +173,7 @@ async function bootstrap(): Promise<void> {
     if (win && isFinalLevel && track === 'rookie') {
       // 通关新手轨 → 领奖台冠军；首次通关解锁专业轨，R 后播登场动画
       nextLevel = 0;
+      rookieCleared = 3;
       const firstUnlock = !proUnlocked;
       unlockPro();
       if (firstUnlock) {
@@ -181,9 +185,13 @@ async function bootstrap(): Promise<void> {
     } else if (win && isFinalLevel) {
       // 通关专业轨（打赢魔王）
       nextLevel = 0;
+      proCleared = 3;
       showChampion(`👑 连魔王都被你打败了，真正的传奇！  ${scoreText}\n按 R 重新挑战 · C 换赛制`);
     } else if (win) {
       nextLevel = levelIndex + 1;
+      // M13 进度条：本关标记为已通关
+      if (track === 'rookie') rookieCleared = Math.max(rookieCleared, levelIndex + 1);
+      else proCleared = Math.max(proCleared, levelIndex + 1);
       if (!firstWinDone) {
         // 首次获胜：奖杯落在玩家身前，悬浮转动的领奖时刻
         firstWinDone = true;
@@ -207,6 +215,7 @@ async function bootstrap(): Promise<void> {
     }
     game.world.player.setMood(win ? 'celebrate' : 'defeat');
     game.world.ai.setMood(win ? 'defeat' : 'celebrate');
+    hud.setProgress({ track, levelIndex, rookieCleared, proCleared, proUnlocked }); // M13：赢关立刻点亮
   };
   rally.onContact = (kind) => {
     if (flow !== 'playing') return;
@@ -302,6 +311,7 @@ async function bootstrap(): Promise<void> {
     game.world.ai.setTint(lv.bodyColor ?? 0x4fc3f7, lv.glow ?? 0);
     game.world.crowd.setLevel(t, i); // M13：观众规模即进度条
     hud.setLevel(TRACKS[t].name, i + 1, lv.name);
+    hud.setProgress({ track: t, levelIndex: i, rookieCleared, proCleared, proUnlocked });
   };
   applyLevel('rookie', 0); // 初始新手轨第一关（菜单背景里就能看到黑帽对手）
 

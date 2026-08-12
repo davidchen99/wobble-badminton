@@ -9,6 +9,10 @@ const STRIKE_POINT = 0.34;
 export const STRIKE_LEAD_SECONDS = SWING_DURATION * STRIKE_POINT;
 /** 动画前段免疫新挥拍，防止一次挥手重复触发（手势层 cooldown 之外的第二道保险） */
 const RESTART_GUARD = 0.55;
+/** 跳起扣杀动画时长（秒） */
+const JUMP_DURATION = 0.55;
+/** 跳起扣杀的跳跃峰值高度（米）：要明显到一眼可辨（M9） */
+const JUMP_HEIGHT = 0.55;
 
 /** 挥拍关键帧：[动画进度, armRotX, armRotZ]，分段线性插值；触球姿势在 STRIKE_POINT 进度处 */
 const SWING_KEYS: Record<SwingDirection, [number, number, number][]> = {
@@ -68,6 +72,8 @@ export class PlayerController {
   private swingDir: SwingDirection = 'right';
   private swingSpeed = 0;
   private strikeFired = false;
+  /** 跳起扣杀动画进度（纯演出，见 jumpSmash） */
+  private jumpPhase: number | null = null;
 
   // 身体惯性弹簧（侧倾 + 压缩）
   private lean = 0;
@@ -97,6 +103,16 @@ export class PlayerController {
     this.strikeFired = false;
   }
 
+  /**
+   * 连握扣杀成功：角色明显跳起扣杀（M9 纯演出——球已被 rally.smash 补刀，
+   * 这里只做"下蹲蓄力 → 抛物线跳起 → 过顶挥臂 → 落地压缩"，判定窗口与时机不变）。
+   */
+  jumpSmash(): void {
+    this.jumpPhase = 0;
+    this.swingPhase = null; // 接管手臂，避免与进行中的普通挥拍抢姿势
+    this.squashVel -= 3; // 起跳前下蹲蓄力（软弹簧表现）
+  }
+
   update(dt: number): void {
     if (this.swingPhase !== null) {
       const prev = this.swingPhase;
@@ -116,6 +132,21 @@ export class PlayerController {
       this.character.armR.rotation.set(pose.rx, 0, pose.rz);
 
       if (this.swingPhase >= 1) this.swingPhase = null;
+    }
+
+    // 跳起扣杀（纯演出）：抛物线升降 + 过顶挥臂，落地给弹簧一个压缩冲量
+    if (this.jumpPhase !== null) {
+      this.jumpPhase = Math.min(1, this.jumpPhase + dt / JUMP_DURATION);
+      const p = this.jumpPhase;
+      this.character.squashG.position.y = 4 * JUMP_HEIGHT * p * (1 - p);
+      // 挥臂稍快于跳跃节奏：起跳到近峰值时完成"举起→扣下"
+      const pose = sampleKeys(SWING_KEYS.up, Math.min(1, p * 1.25));
+      this.character.armR.rotation.set(pose.rx, 0, pose.rz);
+      if (this.jumpPhase >= 1) {
+        this.jumpPhase = null;
+        this.character.squashG.position.y = 0;
+        this.squashVel -= 4.5; // 落地压缩
+      }
     }
 
     // spring/damper 回弹（超调一点产生"软乎乎"的晃动）

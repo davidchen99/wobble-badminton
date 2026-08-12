@@ -39,6 +39,7 @@ export class WobbleCharacter {
     if (mood === 'idle') {
       this.squashG.scale.set(1, 1, 1);
       this.squashG.rotation.set(0, 0, 0);
+      this.squashG.position.set(0, 0, 0); // 跳起扣杀（M9）的演出位移也一并复位
       this.headG.rotation.set(0, 0, 0);
       this.armL.rotation.set(0, 0, WobbleCharacter.REST.armLz);
       this.armR.rotation.set(-0.2, 0, WobbleCharacter.REST.armRz);

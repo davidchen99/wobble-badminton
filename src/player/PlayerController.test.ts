@@ -53,4 +53,17 @@ describe('PlayerController', () => {
     expect(Math.abs(character.squashG.rotation.z)).toBeLessThan(0.01);
     expect(Math.abs(character.squashG.scale.y - 1)).toBeLessThan(0.01);
   });
+
+  it('跳起扣杀：身体明显跳起后落地复位，全程不触发 onStrike', () => {
+    const character = new WobbleCharacter({ color: 0 });
+    const c = new PlayerController(character);
+    let strikes = 0;
+    c.onStrike = () => strikes++;
+    c.jumpSmash();
+    step(c, 0.27); // 接近跳跃中点（动画 0.55s）
+    expect(character.squashG.position.y).toBeGreaterThan(0.3);
+    step(c, 0.6); // 走完动画
+    expect(character.squashG.position.y).toBe(0);
+    expect(strikes).toBe(0); // 纯演出，击球判定已由 rally.smash 完成
+  });
 });

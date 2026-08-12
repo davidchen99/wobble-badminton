@@ -293,8 +293,9 @@ async function bootstrap(): Promise<void> {
       }
       if (grip && flow === 'playing') {
         if (grip.double) {
-          // 连握扣球：给刚打出去的球补刀
+          // 连握扣球：给刚打出去的球补刀 + 角色跳起扣杀（纯演出）
           if (rally.smash()) {
+            playerController.jumpSmash();
             sound.hit(3.5);
             game.addShake(0.16);
             shuttleFlash = 1.6;

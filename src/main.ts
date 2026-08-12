@@ -8,7 +8,7 @@ import { AIController } from './ai/AIController';
 import { SoundManager } from './audio/SoundManager';
 import { Game } from './game/Game';
 import { RallyManager } from './game/rally';
-import { Tutorial } from './game/tutorial';
+import { Tutorial, type TutorialStep } from './game/tutorial';
 import { AI_HOME, PLAYER_HOME } from './game/world';
 import { PlayerController } from './player/PlayerController';
 import { DebugPanel } from './ui/DebugPanel';
@@ -71,14 +71,35 @@ async function bootstrap(): Promise<void> {
   let controlMode: 'bare' | 'keyboard' = 'bare';
   const keysDown = new Set<string>();
 
-  // ---- 新手引导的简图动画管理 ----
-  const tutorialSketchEl = document.getElementById('tutorial-sketch') as HTMLCanvasElement;
+  // ---- 新手引导层（M9：黑底全屏 + 大号简图动画 + 步骤圆点 + 实时识别反馈） ----
+  const tutorialOverlay = document.getElementById('tutorial-overlay') as HTMLElement;
+  const tutorialSketchEl = document.getElementById('tutorial-canvas') as HTMLCanvasElement;
+  const tutorialPromptEl = document.getElementById('tutorial-prompt') as HTMLElement;
+  const tutorialDots = Array.from(document.querySelectorAll('#tutorial-dots span'));
+  const TUTORIAL_STEP_INDEX: Record<TutorialStep, number> = {
+    showHand: 0,
+    grip: 1,
+    doubleGrip: 2,
+    ready: 3,
+    done: 3,
+  };
   let stopSketch: (() => void) | null = null;
   const setSketch = (kind: SketchKind | null): void => {
     stopSketch?.();
     stopSketch = null;
-    tutorialSketchEl.hidden = kind === null;
-    if (kind) stopSketch = startSketch(tutorialSketchEl, kind);
+    if (kind) stopSketch = startSketch(tutorialSketchEl, kind, 2); // 大号简图
+  };
+  const showTutorialStep = (): void => {
+    hud.clearMessage();
+    tutorialOverlay.hidden = false;
+    tutorialPromptEl.textContent = tutorial.prompt;
+    const idx = TUTORIAL_STEP_INDEX[tutorial.step];
+    tutorialDots.forEach((d, i) => d.classList.toggle('active', i <= idx));
+    setSketch(tutorial.sketch);
+  };
+  const hideTutorial = (): void => {
+    tutorialOverlay.hidden = true;
+    setSketch(null);
   };
 
   // ---- 帮助层（含"重新进入新手引导"入口） ----
@@ -87,8 +108,7 @@ async function bootstrap(): Promise<void> {
     hud.setMode(controlMode);
     tutorial.reset();
     flow = 'tutorial';
-    setSketch(tutorial.sketch);
-    hud.showMessage(`${tutorial.prompt}\n\n（空格 跳过引导）`);
+    showTutorialStep();
   };
   const help = new HelpPanel(enterTutorial);
 
@@ -237,11 +257,10 @@ async function bootstrap(): Promise<void> {
 
   tutorial.onStepChange = (step) => {
     if (step === 'done') {
-      setSketch(null);
+      hideTutorial();
       showFormatMenu(); // 引导完成 → 赛制选择（默认 6 分快局）
     } else {
-      setSketch(tutorial.sketch);
-      hud.showMessage(`${tutorial.prompt}\n\n（空格 跳过引导）`);
+      showTutorialStep();
     }
   };
   if (TUTORIAL_ENABLED) {

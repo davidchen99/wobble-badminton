@@ -2,7 +2,8 @@
  * 动作简图小动画：Canvas 程序化绘制的极简示意图（ART_DIRECTION：不用素材）。
  * 用于帮助层与新手引导，让玩家一眼看懂要做什么动作。
  *
- * startSketch 启动一个自循环小动画，返回停止函数。
+ * startSketch 启动一个自循环小动画，返回停止函数；zoom 可整体放大画面
+ * （引导层用大画布 + zoom=2，帮助层用小画布默认 1）。
  */
 
 export type SketchKind = 'showHand' | 'fist' | 'doubleFist' | 'move' | 'wave';
@@ -101,10 +102,10 @@ function render(ctx: CanvasRenderingContext2D, kind: SketchKind, t: number, w: n
     case 'move': {
       const dx = Math.sin(t * 1.6) * 22;
       drawHand(ctx, cx + dx, cy, 1, 1.1);
-      // 左右箭头
+      // 左右箭头（固定偏移，兼容引导层 zoom 放大不飞出画布）
       ctx.fillStyle = ACCENT;
       for (const s of [-1, 1]) {
-        const ax = cx + s * (w / 2 - 16);
+        const ax = cx + s * 46;
         ctx.beginPath();
         ctx.moveTo(ax + s * 8, cy - 8);
         ctx.lineTo(ax - s * 8, cy);
@@ -128,14 +129,19 @@ function render(ctx: CanvasRenderingContext2D, kind: SketchKind, t: number, w: n
   }
 }
 
-/** 在指定 canvas 上循环播放简图动画，返回停止函数 */
-export function startSketch(canvas: HTMLCanvasElement, kind: SketchKind): () => void {
+/** 在指定 canvas 上循环播放简图动画（zoom 整体放大，引导层用 2），返回停止函数 */
+export function startSketch(canvas: HTMLCanvasElement, kind: SketchKind, zoom = 1): () => void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return () => undefined;
   let raf = 0;
   const t0 = performance.now();
   const draw = (): void => {
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-canvas.width / 2, -canvas.height / 2);
     render(ctx, kind, (performance.now() - t0) / 1000, canvas.width, canvas.height);
+    ctx.restore();
     raf = requestAnimationFrame(draw);
   };
   raf = requestAnimationFrame(draw);

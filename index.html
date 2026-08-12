@@ -290,17 +290,52 @@
       #format-standard:hover {
         background: rgba(60, 64, 74, 0.9);
       }
-      /* 新手引导简图（信息框上方） */
-      #tutorial-sketch {
+      /* 新手引导层（M9：整块黑色遮罩 + 大号简图动画 + 步骤圆点） */
+      #tutorial-overlay {
         position: absolute;
-        top: 16%;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(20, 22, 28, 0.85);
-        border-radius: 12px;
+        inset: 0;
+        background: rgba(4, 5, 8, 0.94);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 26px;
+        pointer-events: auto;
       }
-      #tutorial-sketch[hidden] {
+      #tutorial-overlay[hidden] {
         display: none;
+      }
+      #tutorial-canvas {
+        width: 300px;
+        height: 300px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.07);
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.7);
+      }
+      #tutorial-prompt {
+        max-width: 560px;
+        font-size: 22px;
+        line-height: 1.8;
+        text-align: center;
+        white-space: pre-line;
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+      }
+      #tutorial-dots {
+        display: flex;
+        gap: 10px;
+      }
+      #tutorial-dots span {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(232, 234, 238, 0.25);
+      }
+      #tutorial-dots span.active {
+        background: #ffd23f;
+      }
+      #tutorial-skip {
+        font-size: 13px;
+        opacity: 0.5;
       }
     </style>
   </head>
@@ -319,6 +354,12 @@
         <pre id="debug-stats"></pre>
         <div id="debug-controls"></div>
       </div>
+      <div id="tutorial-overlay" hidden>
+        <canvas id="tutorial-canvas" width="300" height="300"></canvas>
+        <div id="tutorial-prompt"></div>
+        <div id="tutorial-dots"><span></span><span></span><span></span><span></span></div>
+        <div id="tutorial-skip">空格 / 点击 跳过引导</div>
+      </div>
       <div id="cam-preview" title="点击放大/缩小">
         <canvas id="cam-overlay" width="480" height="360"></canvas>
       </div>
@@ -333,7 +374,6 @@
           </div>
         </div>
       </div>
-      <canvas id="tutorial-sketch" width="140" height="140" hidden></canvas>
       <div id="format-overlay" hidden>
         <div id="format-card">
           <h2>Wobble Badminton</h2>

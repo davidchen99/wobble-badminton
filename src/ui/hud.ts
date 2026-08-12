@@ -25,9 +25,9 @@ export class Hud {
     mustGet('hud-mode').textContent = mode === 'bare' ? '模式：空手' : '模式：键盘+持物';
   }
 
-  /** 当前关卡常显（M10：第几关 + 对手名） */
-  setLevel(index: number, name: string): void {
-    mustGet('hud-level').textContent = `第 ${index} 关 · ${name}`;
+  /** 当前关卡常显（M11：难度轨 + 第几关 + 对手名） */
+  setLevel(trackName: string, index: number, name: string): void {
+    mustGet('hud-level').textContent = `${trackName} · 第 ${index} 关 · ${name}`;
   }
 
   /** 一般提示（如"等待摄像头授权…"）。 */

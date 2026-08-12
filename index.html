@@ -301,6 +301,61 @@
       #format-standard:hover {
         background: rgba(60, 64, 74, 0.9);
       }
+      /* 难度轨切换按钮（M11：专业轨解锁后才出现） */
+      #format-track {
+        margin-top: 14px;
+        padding: 8px 18px;
+        border: 1px solid rgba(192, 132, 252, 0.6);
+        border-radius: 8px;
+        background: rgba(88, 28, 135, 0.35);
+        color: #e9d5ff;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      #format-track:hover {
+        background: rgba(88, 28, 135, 0.55);
+      }
+      /* 专业轨解锁登场动画层（M11） */
+      #unlock-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(10, 6, 18, 0.72);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: auto;
+      }
+      #unlock-overlay[hidden] {
+        display: none;
+      }
+      #unlock-card {
+        text-align: center;
+      }
+      #unlock-title {
+        font-size: 44px;
+        font-weight: 800;
+        color: #c084fc;
+        text-shadow: 0 0 18px #a855f7, 0 0 46px #7c3aed;
+        animation: unlockPulse 0.9s ease-in-out infinite alternate;
+      }
+      #unlock-sub {
+        margin-top: 14px;
+        font-size: 18px;
+        color: #e9d5ff;
+      }
+      #unlock-tip {
+        margin-top: 30px;
+        font-size: 13px;
+        opacity: 0.6;
+      }
+      @keyframes unlockPulse {
+        from {
+          transform: scale(1);
+        }
+        to {
+          transform: scale(1.07);
+        }
+      }
       /* 新手引导层（M9：整块黑色遮罩 + 大号简图动画 + 步骤圆点） */
       #tutorial-overlay {
         position: absolute;
@@ -391,8 +446,16 @@
           <h2>Wobble Badminton</h2>
           <button id="format-quick">开打 · 6 分快局</button>
           <div id="format-tip">空格 / 点击画面 = 6 分快局（默认）</div>
+          <button id="format-track" hidden>轨道：新手</button>
         </div>
         <button id="format-standard" title="标准赛 21 分">标准赛 · 21 分</button>
+      </div>
+      <div id="unlock-overlay" hidden>
+        <div id="unlock-card">
+          <div id="unlock-title">⚡ 专业玩家解锁 ⚡</div>
+          <div id="unlock-sub">紫影 · 紫电 · 魔王 在球场等你</div>
+          <div id="unlock-tip">空格 / 点击 继续</div>
+        </div>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

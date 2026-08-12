@@ -90,8 +90,8 @@
 - [x] 新手轨难度下调：三关球速放慢（1.9/1.6/1.3s）、失误率上调（25/15/8%）、反应放宽（280/230/180ms）；扣杀飞行时间按关卡可配（新手王冠 0.95s）
 - [x] 扣球跳起更夸张：跳跃峰值与落地压缩加大，与普通击打隔屏可辨
 - [x] 引导简图左右对照：左侧手部动作 + 右侧简笔小人同步演示游戏内结果（握一下=挥拍、握两下=跳扣且动作更快）
-- [ ] 专业三关：紫影→紫电→魔王（同一角色紫色递进+荧光感），数值全面加强（1.5/1.2/1.0s、扣杀 10/25/40%）
-- [ ] 通关新手王冠 → 专业玩家登场小动画 → 解锁专业轨；localStorage 持久化（解锁一次永久有效）；HUD 关卡标识区分"新手/专业"，赛制选择层出现轨道切换入口
+- [x] 专业三关：紫影→紫电→魔王（同一角色紫色递进+荧光感），数值全面加强（1.25/1.1/0.95s、扣杀 25/30/45%）
+- [x] 通关新手王冠 → 专业玩家登场小动画 → 解锁专业轨；localStorage 持久化（解锁一次永久有效）；HUD 关卡标识区分"新手/专业"，赛制选择层出现轨道切换入口
 
 ## MVP Gate（必须真实设备验证）
 - 首轮实测（2026-08-11）未通过项：主线程同步推理导致卡顿冻结；球速过快无法回击；无新手引导不知如何击打；预览画幅太小。→ M7 已修复
@@ -129,3 +129,4 @@
 - M9-2~M9-5 实现要点（2026-08-12）：跳扣演出走 squashG.position.y（PlayerController 专属层，避开 bodyG 的 idle 呼吸写入冲突），0.55s 抛物线+过顶挥臂+落地压缩，纯演出不动判定；击球窗口球体→椭球（x2.3/y2.0/z3.0，纵深=时间宽）；引导层 DOM 置于 cam-preview 之前保证预览骨架可见，startSketch 加 zoom 参数（引导 2 倍）；奖杯 trophy.ts 程序化金杯，首胜场次内一次，world.update 驱动悬浮旋转。
 - M10 实现要点（2026-08-12）：levels.ts 三关配置（flightTime/missRate/reactionMs/returnSpread/smashRate）；character.setHat(cap/crown) 挂 headG；rally.targetSpread 实例化 + trySmashHit（同窗判定、0.7s 压后场）；AI smashRate 每球决策一次、jumpSmash 跳起前摇 0.16s 后 trySmashHit 补刀；podium.ts 金银铜名次台+Canvas 名次牌；showChampion 摆位（玩家 #1、AI #2、黑帽 NPC #3）+ resetArena 复位；关卡进度 nextLevel 驱动（赢晋级/输重战/通关归零），刷新重置无存档。51 测试过。
 - M11 定稿（2026-08-12 深夜，用户确认）：三关实测王冠扣杀过快打不过 → 新手轨整体降难度（首次玩家可通关），扣杀飞行时间按关可配（新手王冠 0.95s）；引导获好评，升级为左右对照（左手部动作 + 右简笔小人结果演示）；扣球跳起更夸张；新增专业轨（紫影/紫电/魔王，同一角色紫色递进 + 荧光感），通关新手王冠播登场动画解锁；localStorage 持久化解锁标记（用户未对小确认点单独表态，按建议默认值落地：解锁持久化 + 紫色递进）。
+- M11 实现要点（2026-08-12）：levels.ts 重构为 TRACKS（rookie/pro，LevelConfig 加 bodyColor/glow/smashFlight）；专业轨数值经设计评审修正（紫影 1.25s ≥ 新手王冠强度，避免解锁后反降难度的心流断点）；character.setTint 走共享 skin 材质（color+emissive 一行换肤荧光）；rally.smashFlightTime 实例化（玩家扣杀仍 0.7s 常量）；sketches 小人仅大画布（w≥200）启用，帮助层小画布保持单手；解锁流=pendingUnlockIntro 标志（R 播登场动画/C 跳过直接解锁），unlockOverlay 为 DOM 呼吸灯层 + applyLevel('pro',0) 让紫影在球场就位；localStorage 键 wobble.proUnlocked，隐私模式 try/catch 容错。51 测试过。

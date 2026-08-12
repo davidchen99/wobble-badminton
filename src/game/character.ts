@@ -29,6 +29,8 @@ export class WobbleCharacter {
   readonly armR = new THREE.Group();
   /** 关卡帽子（M10），挂在 headG 上跟随头部动作 */
   private hatG: THREE.Group | null = null;
+  /** 皮肤材质（M11 专业轨换肤/荧光用，腿/身体/头/臂共享同一材质实例） */
+  private skin: THREE.MeshLambertMaterial;
 
   private idlePhase = Math.random() * Math.PI * 2;
   private mood: 'idle' | 'celebrate' | 'defeat' = 'idle';
@@ -60,9 +62,16 @@ export class WobbleCharacter {
     this.headG.add(this.hatG);
   }
 
+  /** 换肤 + 荧光（M11 专业轨：紫色递进 + emissive 发光，越往后越狠） */
+  setTint(color: number, glow = 0): void {
+    this.skin.color.setHex(color);
+    this.skin.emissive.setHex(glow);
+  }
+
   constructor(options: CharacterOptions) {
     const color = options.color;
     const skin = new THREE.MeshLambertMaterial({ color, flatShading: true });
+    this.skin = skin;
     const dark = new THREE.MeshLambertMaterial({ color: 0x263238 });
 
     // 腿（两截短柱）

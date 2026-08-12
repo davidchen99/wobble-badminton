@@ -7,7 +7,7 @@ import { WorkerTracker } from './camera/WorkerTracker';
 import { AIController } from './ai/AIController';
 import { SoundManager } from './audio/SoundManager';
 import { Game } from './game/Game';
-import { LEVELS } from './game/levels';
+import { TRACKS, type TrackId } from './game/levels';
 import { RallyManager } from './game/rally';
 import { Tutorial, type TutorialStep } from './game/tutorial';
 import { AI_HOME, PLAYER_HOME } from './game/world';
@@ -71,9 +71,28 @@ async function bootstrap(): Promise<void> {
   /** 操控模式：bare=空手（握拳/手位），keyboard=键盘+持物（WASD/快挥） */
   let controlMode: 'bare' | 'keyboard' = 'bare';
   const keysDown = new Set<string>();
-  /** 关卡进度（M10）：levelIndex=当前关；nextLevel=下一局要打的关（赢球晋级、输球重战、通关归零） */
+  /** 关卡进度（M10/M11 双轨）：track=当前难度轨；levelIndex=当前关；nextLevel=下一局要打的关（赢晋级/输重战/通关归零） */
+  let track: TrackId = 'rookie';
   let levelIndex = 0;
   let nextLevel = 0;
+  /** 专业轨解锁（M11）：通关新手王冠后解锁，localStorage 持久化，解锁一次永久有效 */
+  const PRO_KEY = 'wobble.proUnlocked';
+  let proUnlocked = false;
+  try {
+    proUnlocked = localStorage.getItem(PRO_KEY) === '1';
+  } catch {
+    /* 隐私模式等读不到就当未解锁 */
+  }
+  const unlockPro = (): void => {
+    proUnlocked = true;
+    try {
+      localStorage.setItem(PRO_KEY, '1');
+    } catch {
+      /* 写不进就算了，当局内仍然有效 */
+    }
+  };
+  /** 通关新手轨后待播的专业玩家登场动画 */
+  let pendingUnlockIntro = false;
 
   // ---- 新手引导层（M9：黑底全屏 + 大号简图动画 + 步骤圆点 + 实时识别反馈） ----
   const tutorialOverlay = document.getElementById('tutorial-overlay') as HTMLElement;
@@ -141,9 +160,22 @@ async function bootstrap(): Promise<void> {
     flow = 'matchEnd';
     const win = winner === 'player';
     const scoreText = `${scores.player} : ${scores.ai}`;
-    if (win && levelIndex >= LEVELS.length - 1) {
-      // 打赢王冠 → 通关总冠军：领奖台冠军时刻（M10-2）
-      showChampion(scoreText);
+    const isFinalLevel = levelIndex >= TRACKS[track].levels.length - 1;
+    if (win && isFinalLevel && track === 'rookie') {
+      // 通关新手轨 → 领奖台冠军；首次通关解锁专业轨，R 后播登场动画
+      nextLevel = 0;
+      const firstUnlock = !proUnlocked;
+      unlockPro();
+      if (firstUnlock) {
+        pendingUnlockIntro = true;
+        showChampion(`🏆 新手轨总冠军！  ${scoreText}\n按 R 看看谁来了……`);
+      } else {
+        showChampion(`🏆 总冠军！  ${scoreText}\n按 R 重新挑战 · C 换赛制`);
+      }
+    } else if (win && isFinalLevel) {
+      // 通关专业轨（打赢魔王）
+      nextLevel = 0;
+      showChampion(`👑 连魔王都被你打败了，真正的传奇！  ${scoreText}\n按 R 重新挑战 · C 换赛制`);
     } else if (win) {
       nextLevel = levelIndex + 1;
       if (!firstWinDone) {
@@ -154,17 +186,17 @@ async function bootstrap(): Promise<void> {
         trophy.position.set(playerPos.x, 0, playerPos.z - 1.3);
         trophy.visible = true;
         hud.showMessage(
-          `首次获胜！🏆 这是你的奖杯！  ${scoreText}\n过关！下一关【${LEVELS[nextLevel].name}】按 R 开战 · C 换赛制`,
+          `首次获胜！🏆 这是你的奖杯！  ${scoreText}\n过关！下一关【${TRACKS[track].levels[nextLevel].name}】按 R 开战 · C 换赛制`,
         );
       } else {
         hud.showMessage(
-          `过关！  ${scoreText}\n下一关【${LEVELS[nextLevel].name}】按 R 开战 · C 换赛制`,
+          `过关！  ${scoreText}\n下一关【${TRACKS[track].levels[nextLevel].name}】按 R 开战 · C 换赛制`,
         );
       }
     } else {
       nextLevel = levelIndex; // 输球重战本关
       hud.showMessage(
-        `AI 获胜  ${scoreText}\n按 R 再战【${LEVELS[levelIndex].name}】 · C 换赛制`,
+        `AI 获胜  ${scoreText}\n按 R 再战【${TRACKS[track].levels[levelIndex].name}】 · C 换赛制`,
       );
     }
     game.world.player.setMood(win ? 'celebrate' : 'defeat');
@@ -176,12 +208,15 @@ async function bootstrap(): Promise<void> {
     else sound.bounce();
   };
 
-  // ---- 赛制选择层（M9：6 分快局默认 / 21 分标准赛右上角入口） ----
+  // ---- 赛制选择层（M9：6 分快局默认 / 21 分标准赛右上角入口；M11：专业轨解锁后有轨道切换） ----
   const formatOverlay = document.getElementById('format-overlay') as HTMLElement;
   const formatQuick = document.getElementById('format-quick') as HTMLButtonElement;
   const formatStandard = document.getElementById('format-standard') as HTMLButtonElement;
+  const formatTrack = document.getElementById('format-track') as HTMLButtonElement;
+  const unlockOverlay = document.getElementById('unlock-overlay') as HTMLElement;
   /** 当前赛制（获胜分数线）：R 重开保持，终局可按 C 回选择层更换 */
   let format: 6 | 21 = 6;
+
   /** 场地复位（M10）：藏起领奖台/NPC/奖杯，角色回站位、朝向复位 */
   const resetArena = (): void => {
     const { player, ai, npc, podium, trophy } = game.world;
@@ -197,10 +232,9 @@ async function bootstrap(): Promise<void> {
   };
 
   /** 总冠军领奖台（M10-2）：1/2/3 名次台，玩家登顶捧杯，黑帽老朋友第三 */
-  const showChampion = (scoreText: string): void => {
-    nextLevel = 0; // 通关后重新从第一关挑战
+  const showChampion = (message: string): void => {
     const { player, ai, npc, podium, trophy } = game.world;
-    npc.setHat('cap', LEVELS[0].hatColor);
+    npc.setHat('cap', TRACKS.rookie.levels[0].hatColor);
     npc.group.visible = true;
     podium.visible = true;
     // 面向镜头站上台（名次台固定在 z=1.5，见 world.ts）
@@ -213,7 +247,12 @@ async function bootstrap(): Promise<void> {
     npc.setMood('celebrate');
     trophy.position.set(0, 0, 0.2); // 台前悬浮
     trophy.visible = true;
-    hud.showMessage(`🏆 总冠军！你通关了全部三关！  ${scoreText}\n按 R 重新挑战 · C 换赛制`);
+    hud.showMessage(message);
+  };
+
+  const refreshTrackButton = (): void => {
+    formatTrack.hidden = !proUnlocked;
+    formatTrack.textContent = `轨道：${TRACKS[track].name}（点击切换）`;
   };
 
   const showFormatMenu = (): void => {
@@ -221,14 +260,32 @@ async function bootstrap(): Promise<void> {
     game.world.player.setMood('idle');
     game.world.ai.setMood('idle');
     resetArena();
+    refreshTrackButton();
     hud.clearMessage();
     formatOverlay.hidden = false;
   };
 
-  /** 应用关卡难度参数与对手帽子外观（M10，帽子即难度符号） */
-  const applyLevel = (i: number): void => {
+  /** 专业玩家登场小动画（M11）：紫色荧光对手在球场就位 + 呼吸灯标题层 */
+  const showUnlockIntro = (): void => {
+    flow = 'menu';
+    resetArena();
+    game.world.player.setMood('idle');
+    game.world.ai.setMood('idle');
+    applyLevel('pro', 0); // 紫影在球场登场（层后背景可见）
+    hud.clearMessage();
+    formatOverlay.hidden = true;
+    unlockOverlay.hidden = false;
+  };
+  const hideUnlockIntro = (): void => {
+    unlockOverlay.hidden = true;
+    showFormatMenu(); // 专业轨入口已就绪
+  };
+
+  /** 应用难度轨与关卡：难度参数 + 对手造型（帽子/肤色/荧光）+ HUD 标识 */
+  const applyLevel = (t: TrackId, i: number): void => {
+    track = t;
     levelIndex = i;
-    const lv = LEVELS[i];
+    const lv = TRACKS[t].levels[i];
     rally.flightTime = lv.flightTime;
     rally.targetSpread = lv.returnSpread;
     rally.smashFlightTime = lv.smashFlight;
@@ -236,15 +293,16 @@ async function bootstrap(): Promise<void> {
     aiController.params.reactionMs = lv.reactionMs;
     aiController.params.smashRate = lv.smashRate;
     game.world.ai.setHat(lv.hat, lv.hatColor);
-    hud.setLevel(i + 1, lv.name);
+    game.world.ai.setTint(lv.bodyColor ?? 0x4fc3f7, lv.glow ?? 0);
+    hud.setLevel(TRACKS[t].name, i + 1, lv.name);
   };
-  applyLevel(0); // 初始第一关（菜单背景里就能看到黑帽对手）
+  applyLevel('rookie', 0); // 初始新手轨第一关（菜单背景里就能看到黑帽对手）
 
   // ---- 开始 / 暂停 / 重开 ----
   const startGame = (nextFormat: 6 | 21 = format): void => {
     format = nextFormat;
     sound.ensure(); // AudioContext 必须在用户手势里创建
-    applyLevel(nextLevel);
+    applyLevel(track, nextLevel);
     rally.match.winScore = format;
     rally.reset();
     hud.setScore(0, 0);
@@ -262,6 +320,14 @@ async function bootstrap(): Promise<void> {
   formatStandard.addEventListener('click', (e) => {
     e.stopPropagation();
     startGame(21);
+  });
+  formatTrack.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!proUnlocked) return;
+    const next: TrackId = track === 'rookie' ? 'pro' : 'rookie';
+    nextLevel = 0;
+    applyLevel(next, 0); // 菜单背景同步换对手造型
+    refreshTrackButton();
   });
   window.addEventListener('keydown', (e) => {
     sound.ensure(); // 任何首次按键都尝试解锁音频（引导自动开球路径）
@@ -283,8 +349,10 @@ async function bootstrap(): Promise<void> {
     }
     if (e.code === 'Space') {
       e.preventDefault();
-      if (flow === 'menu') startGame();
-      else if (flow === 'tutorial') {
+      if (flow === 'menu') {
+        if (!unlockOverlay.hidden) hideUnlockIntro();
+        else startGame();
+      } else if (flow === 'tutorial') {
         tutorial.skip(); // onStepChange('done') 会触发 showFormatMenu
       } else if (flow === 'playing') {
         flow = 'paused';
@@ -295,15 +363,24 @@ async function bootstrap(): Promise<void> {
       }
       // matchEnd 下空格无效，按 R 开新局
     } else if (e.code === 'KeyR' && flow !== 'menu' && flow !== 'tutorial') {
-      startGame(); // 重开保持当前赛制与关卡进度（赢球已晋级 / 输球重战）
+      if (flow === 'matchEnd' && pendingUnlockIntro) {
+        // 先看专业玩家登场动画，再回赛制选择
+        pendingUnlockIntro = false;
+        showUnlockIntro();
+      } else {
+        startGame(); // 重开保持当前赛制与关卡进度（赢球已晋级 / 输球重战）
+      }
     } else if (e.code === 'KeyC' && flow === 'matchEnd') {
-      showFormatMenu(); // 终局后可换赛制
+      pendingUnlockIntro = false; // 跳过登场动画直接去选赛制（专业轨已解锁）
+      showFormatMenu();
     }
   });
   window.addEventListener('pointerdown', () => {
     sound.ensure();
-    if (flow === 'menu') startGame();
-    else if (flow === 'tutorial') tutorial.skip();
+    if (flow === 'menu') {
+      if (!unlockOverlay.hidden) hideUnlockIntro();
+      else startGame();
+    } else if (flow === 'tutorial') tutorial.skip();
   });
   window.addEventListener('keyup', (e) => {
     keysDown.delete(e.code);

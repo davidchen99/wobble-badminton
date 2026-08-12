@@ -166,26 +166,32 @@ export function judgeLanding(pos: Vec3): { side: Side; inCourt: boolean } {
 
 /** 辅助击球时空窗口（GAME_DESIGN：宽容，不要求像素级空间对应） */
 export const HIT_WINDOW = {
-  /** 击球点半径（米），以角色身前为球心 */
-  radius: 2.1,
   /** 击球点离地高度 */
   height: 1.25,
   /** 击球点在角色身前的距离 */
   forward: 0.9,
+  /**
+   * 窗口椭球三轴半径（米）——M9 定调"时间宽、空间适中"：
+   * 纵深半径最大（球主要沿纵深飞来，纵深 = 球在窗口内停留的时间，
+   * 早挥晚挥都给容错）；横向适中（保住跑位意义）；竖向略收（天高球不算）。
+   */
+  radiusX: 2.3,
+  radiusY: 2.0,
+  radiusZ: 3.0,
 } as const;
 
 /**
  * 判断球此刻是否处于某方的可击球窗口：
- * 在窗口球体内，且正朝该方场地运动（防止把自己刚打走的球又打回来）。
+ * 在窗口椭球内（纵深容差 > 横向容差），且正朝该方场地运动（防止把自己刚打走的球又打回来）。
  */
 export function inHitWindow(pos: Vec3, vel: Vec3, hitter: Side, hitterHome: Vec3): boolean {
   const toward = hitter === 'player' ? vel.z > 0 : vel.z < 0;
   if (!toward) return false;
   const dir = hitter === 'player' ? -1 : 1; // 角色面向网的方向
-  const dx = pos.x - hitterHome.x;
-  const dy = pos.y - HIT_WINDOW.height;
-  const dz = pos.z - (hitterHome.z + HIT_WINDOW.forward * dir);
-  return dx * dx + dy * dy + dz * dz <= HIT_WINDOW.radius * HIT_WINDOW.radius;
+  const dx = (pos.x - hitterHome.x) / HIT_WINDOW.radiusX;
+  const dy = (pos.y - HIT_WINDOW.height) / HIT_WINDOW.radiusY;
+  const dz = (pos.z - (hitterHome.z + HIT_WINDOW.forward * dir)) / HIT_WINDOW.radiusZ;
+  return dx * dx + dy * dy + dz * dz <= 1;
 }
 
 /** 闭式预测 t 秒后的位置（与 ShuttlePhysics 积分公式一致） */

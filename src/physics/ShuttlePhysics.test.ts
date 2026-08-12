@@ -85,4 +85,13 @@ describe('judgeLanding / inHitWindow', () => {
     // AI 侧对称
     expect(inHitWindow({ x: 0, y: 1.3, z: -3.9 }, { x: 0, y: 0, z: -3 }, 'ai', AI_HOME)).toBe(true);
   });
+
+  it('击球窗口是椭球：纵深容差 > 横向容差（M9 时间宽/空间适中）', () => {
+    // 纵深偏移 2.5m（球在角色身前/身后更远）仍可打 → 早挥晚挥容错
+    expect(inHitWindow({ x: 0, y: 1.25, z: 6.4 }, { x: 0, y: 0, z: 3 }, 'player', PLAYER_HOME)).toBe(true);
+    // 横向偏移 2.5m 则超出 → 保住跑位意义
+    expect(inHitWindow({ x: 2.5, y: 1.25, z: 3.9 }, { x: 0, y: 0, z: 3 }, 'player', PLAYER_HOME)).toBe(false);
+    // 竖向过高（3.4m 天球）超出
+    expect(inHitWindow({ x: 0, y: 3.4, z: 3.9 }, { x: 0, y: 0, z: 3 }, 'player', PLAYER_HOME)).toBe(false);
+  });
 });

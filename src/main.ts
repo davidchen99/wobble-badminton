@@ -7,6 +7,7 @@ import { WorkerTracker } from './camera/WorkerTracker';
 import { AIController } from './ai/AIController';
 import { SoundManager } from './audio/SoundManager';
 import { Game } from './game/Game';
+import { LEVELS } from './game/levels';
 import { RallyManager } from './game/rally';
 import { Tutorial, type TutorialStep } from './game/tutorial';
 import { AI_HOME, PLAYER_HOME } from './game/world';
@@ -70,6 +71,9 @@ async function bootstrap(): Promise<void> {
   /** 操控模式：bare=空手（握拳/手位），keyboard=键盘+持物（WASD/快挥） */
   let controlMode: 'bare' | 'keyboard' = 'bare';
   const keysDown = new Set<string>();
+  /** 关卡进度（M10）：levelIndex=当前关；nextLevel=下一局要打的关（赢球晋级、输球重战、通关归零） */
+  let levelIndex = 0;
+  let nextLevel = 0;
 
   // ---- 新手引导层（M9：黑底全屏 + 大号简图动画 + 步骤圆点 + 实时识别反馈） ----
   const tutorialOverlay = document.getElementById('tutorial-overlay') as HTMLElement;
@@ -136,19 +140,32 @@ async function bootstrap(): Promise<void> {
   rally.onMatchEnd = (winner, scores) => {
     flow = 'matchEnd';
     const win = winner === 'player';
-    if (win && !firstWinDone) {
-      // 首次获胜：奖杯落在玩家身前，悬浮转动的领奖时刻
-      firstWinDone = true;
-      const playerPos = game.world.player.group.position;
-      const trophy = game.world.trophy;
-      trophy.position.set(playerPos.x, 0, playerPos.z - 1.3);
-      trophy.visible = true;
-      hud.showMessage(
-        `首次获胜！🏆 这是你的奖杯！  ${scores.player} : ${scores.ai}\n按 R 再来一局 · C 换赛制`,
-      );
+    const scoreText = `${scores.player} : ${scores.ai}`;
+    if (win && levelIndex >= LEVELS.length - 1) {
+      // 打赢王冠 → 通关总冠军（领奖台见 M10-2）
+      nextLevel = 0;
+      hud.showMessage(`🏆 总冠军！你通关了全部三关！  ${scoreText}\n按 R 重新挑战 · C 换赛制`);
+    } else if (win) {
+      nextLevel = levelIndex + 1;
+      if (!firstWinDone) {
+        // 首次获胜：奖杯落在玩家身前，悬浮转动的领奖时刻
+        firstWinDone = true;
+        const playerPos = game.world.player.group.position;
+        const trophy = game.world.trophy;
+        trophy.position.set(playerPos.x, 0, playerPos.z - 1.3);
+        trophy.visible = true;
+        hud.showMessage(
+          `首次获胜！🏆 这是你的奖杯！  ${scoreText}\n过关！下一关【${LEVELS[nextLevel].name}】按 R 开战 · C 换赛制`,
+        );
+      } else {
+        hud.showMessage(
+          `过关！  ${scoreText}\n下一关【${LEVELS[nextLevel].name}】按 R 开战 · C 换赛制`,
+        );
+      }
     } else {
+      nextLevel = levelIndex; // 输球重战本关
       hud.showMessage(
-        `${win ? '你赢了！🎉' : 'AI 获胜'}  ${scores.player} : ${scores.ai}\n按 R 再来一局 · C 换赛制`,
+        `AI 获胜  ${scoreText}\n按 R 再战【${LEVELS[levelIndex].name}】 · C 换赛制`,
       );
     }
     game.world.player.setMood(win ? 'celebrate' : 'defeat');
@@ -175,10 +192,25 @@ async function bootstrap(): Promise<void> {
     formatOverlay.hidden = false;
   };
 
+  /** 应用关卡难度参数与对手帽子外观（M10，帽子即难度符号） */
+  const applyLevel = (i: number): void => {
+    levelIndex = i;
+    const lv = LEVELS[i];
+    rally.flightTime = lv.flightTime;
+    rally.targetSpread = lv.returnSpread;
+    aiController.params.missRate = lv.missRate;
+    aiController.params.reactionMs = lv.reactionMs;
+    aiController.params.smashRate = lv.smashRate;
+    game.world.ai.setHat(lv.hat, lv.hatColor);
+    hud.setLevel(i + 1, lv.name);
+  };
+  applyLevel(0); // 初始第一关（菜单背景里就能看到黑帽对手）
+
   // ---- 开始 / 暂停 / 重开 ----
   const startGame = (nextFormat: 6 | 21 = format): void => {
     format = nextFormat;
     sound.ensure(); // AudioContext 必须在用户手势里创建
+    applyLevel(nextLevel);
     rally.match.winScore = format;
     rally.reset();
     hud.setScore(0, 0);
@@ -229,7 +261,7 @@ async function bootstrap(): Promise<void> {
       }
       // matchEnd 下空格无效，按 R 开新局
     } else if (e.code === 'KeyR' && flow !== 'menu' && flow !== 'tutorial') {
-      startGame(); // 重开保持当前赛制
+      startGame(); // 重开保持当前赛制与关卡进度（赢球已晋级 / 输球重战）
     } else if (e.code === 'KeyC' && flow === 'matchEnd') {
       showFormatMenu(); // 终局后可换赛制
     }

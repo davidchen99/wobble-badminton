@@ -54,6 +54,17 @@
         text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
         letter-spacing: 2px;
       }
+      /* 当前关卡（计分板下方，M10） */
+      #hud-level {
+        position: absolute;
+        top: 56px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 14px;
+        font-weight: 600;
+        opacity: 0.85;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+      }
       #hud-message {
         position: absolute;
         top: 50%;
@@ -349,6 +360,7 @@
         <div id="hud-hint">M 切模式 · ` 调试 · 点预览图放大</div>
       </div>
       <div id="hud-score">0 : 0</div>
+      <div id="hud-level">第 1 关 · 黑帽新手</div>
       <div id="hud-message" hidden></div>
       <div id="debug-panel" hidden>
         <pre id="debug-stats"></pre>

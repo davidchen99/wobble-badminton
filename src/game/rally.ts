@@ -4,8 +4,6 @@ import type { Shuttle } from './shuttle';
 
 /** 回合结束到重新发球的间隔（秒） */
 const SERVE_DELAY = 1.4;
-/** 击球落点围绕对方站位的随机散布半径（米）——M8 正板直打，收窄 */
-const TARGET_SPREAD = 0.8;
 /** 扣球补刀窗口：击中后多少秒内允许连握加成（秒） */
 const SMASH_WINDOW = 0.6;
 /** 扣球基础飞行时间（秒）：比普通回球（默认 1.8）快得多、更平 */
@@ -25,8 +23,10 @@ export interface RallyHomes {
 export class RallyManager {
   readonly physics = new ShuttlePhysics();
   readonly match = new MatchState();
-  /** 全局球速：回球/发球的基础飞行时间（秒），越大越慢越高（M8 定稿开局慢球） */
+  /** 全局球速：回球/发球的基础飞行时间（秒），越大越慢越高（M8 定稿开局慢球；M10 由关卡配置驱动） */
   flightTime = 1.8;
+  /** 回球落点围绕对方站位的随机散布半径（米）——M10 关卡参数：小=球找人，大=人找球 */
+  targetSpread = 0.8;
   /** 判分回调（HUD 提示 / M6 计分板） */
   onPoint: ((scorer: Side, scores: Record<Side, number>) => void) | null = null;
   /** 球的物理接触事件回调（音效用）：触网 / 落地 */
@@ -75,10 +75,10 @@ export class RallyManager {
     if (!inHitWindow(this.physics.pos, this.physics.vel, hitter, home)) return false;
 
     const opponentHome = this.homes[hitter === 'player' ? 'ai' : 'player'];
-    // 落点：对方站位附近散布，钳制在单打界内（z 用绝对值避免符号被 clamp 吃掉）
-    const zMag = clamp(Math.abs(opponentHome.z) + randSpread(TARGET_SPREAD), 2.4, 6.2);
+    // 落点：对方站位附近散布（M10 关卡可调），钳制在单打界内（z 用绝对值避免符号被 clamp 吃掉）
+    const zMag = clamp(Math.abs(opponentHome.z) + randSpread(this.targetSpread), 2.4, 6.2);
     const target: Vec3 = {
-      x: clamp(opponentHome.x + randSpread(TARGET_SPREAD), -2.2, 2.2),
+      x: clamp(opponentHome.x + randSpread(this.targetSpread), -2.2, 2.2),
       y: 0,
       z: hitter === 'player' ? -zMag : zMag,
     };
@@ -108,6 +108,29 @@ export class RallyManager {
     const { vel } = this.physics.solveFlight(this.physics.pos, target, SMASH_FLIGHT_TIME);
     this.physics.launch(vel, this.physics.pos, 'player');
     this.lastPlayerHitAt = -Infinity; // 一板只能补一次
+    return true;
+  }
+
+  /**
+   * 扣杀回球（M10 王冠 Boss）：窗口判定同 tryHit，但更快更平、压向对方后场。
+   * 跳起扣杀演出由调用方（AIController）在命中前播，作为给玩家的前摇提示。
+   */
+  trySmashHit(hitter: Side): boolean {
+    if (this.phase !== 'flying' || !this.physics.active) return false;
+    if (this.physics.lastHitter === hitter) return false;
+    const home = this.homes[hitter];
+    if (!inHitWindow(this.physics.pos, this.physics.vel, hitter, home)) return false;
+
+    const opponentHome = this.homes[hitter === 'player' ? 'ai' : 'player'];
+    const zMag = 5.4 + Math.random() * 0.7; // 压后场
+    const target: Vec3 = {
+      x: clamp(opponentHome.x + randSpread(1.2), -2.2, 2.2),
+      y: 0,
+      z: hitter === 'player' ? -zMag : zMag,
+    };
+    const { vel } = this.physics.solveFlight(this.physics.pos, target, SMASH_FLIGHT_TIME);
+    this.physics.launch(vel, this.physics.pos, hitter);
+    if (hitter === 'player') this.lastPlayerHitAt = this.time;
     return true;
   }
 

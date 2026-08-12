@@ -15,7 +15,7 @@ export interface CharacterOptions {
  *   group
  *   └─ squashG（整体 squash/lean，惯性表现层）
  *      ├─ bodyG（呼吸浮动）
- *      │   ├─ body / head(+eyes) / armL
+ *      │   ├─ body / head(+eyes+hat) / armL
  *      │   └─ armR ─ racket
  */
 export class WobbleCharacter {
@@ -27,6 +27,8 @@ export class WobbleCharacter {
   private armL = new THREE.Group();
   /** 持拍手（右臂），M3 挥拍动画旋转它 */
   readonly armR = new THREE.Group();
+  /** 关卡帽子（M10），挂在 headG 上跟随头部动作 */
+  private hatG: THREE.Group | null = null;
 
   private idlePhase = Math.random() * Math.PI * 2;
   private mood: 'idle' | 'celebrate' | 'defeat' = 'idle';
@@ -45,6 +47,17 @@ export class WobbleCharacter {
       this.armR.rotation.set(-0.2, 0, WobbleCharacter.REST.armRz);
       this.bodyG.position.y = 0;
     }
+  }
+
+  /** 关卡帽子（M10：帽子即难度符号；'none' 摘除） */
+  setHat(hat: 'none' | 'cap' | 'crown', color = 0x37474f): void {
+    if (this.hatG) {
+      this.headG.remove(this.hatG);
+      this.hatG = null;
+    }
+    if (hat === 'none') return;
+    this.hatG = hat === 'cap' ? buildCap(color) : buildCrown(color);
+    this.headG.add(this.hatG);
   }
 
   constructor(options: CharacterOptions) {
@@ -149,4 +162,36 @@ function buildRacket(): THREE.Group {
   racket.add(head);
 
   return racket;
+}
+
+/** 棒球帽（M10 关卡符号）：半球帽顶 + 前帽檐（模型本地前方 +z） */
+function buildCap(color: number): THREE.Group {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({ color, flatShading: true });
+  const dome = new THREE.Mesh(
+    new THREE.SphereGeometry(0.29, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+    mat,
+  );
+  dome.position.y = 0.06;
+  g.add(dome);
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.03, 12), mat);
+  brim.position.set(0, 0.1, 0.3);
+  g.add(brim);
+  return g;
+}
+
+/** 王冠（M10 Boss 符号）：金环 + 一圈尖齿 */
+function buildCrown(color: number): THREE.Group {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({ color, flatShading: true });
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.14, 12), mat);
+  band.position.y = 0.28;
+  g.add(band);
+  for (let i = 0; i < 5; i++) {
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.12, 6), mat);
+    const a = (i / 5) * Math.PI * 2;
+    spike.position.set(Math.cos(a) * 0.19, 0.41, Math.sin(a) * 0.19);
+    g.add(spike);
+  }
+  return g;
 }

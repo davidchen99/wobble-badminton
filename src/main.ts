@@ -142,9 +142,8 @@ async function bootstrap(): Promise<void> {
     const win = winner === 'player';
     const scoreText = `${scores.player} : ${scores.ai}`;
     if (win && levelIndex >= LEVELS.length - 1) {
-      // 打赢王冠 → 通关总冠军（领奖台见 M10-2）
-      nextLevel = 0;
-      hud.showMessage(`🏆 总冠军！你通关了全部三关！  ${scoreText}\n按 R 重新挑战 · C 换赛制`);
+      // 打赢王冠 → 通关总冠军：领奖台冠军时刻（M10-2）
+      showChampion(scoreText);
     } else if (win) {
       nextLevel = levelIndex + 1;
       if (!firstWinDone) {
@@ -183,11 +182,45 @@ async function bootstrap(): Promise<void> {
   const formatStandard = document.getElementById('format-standard') as HTMLButtonElement;
   /** 当前赛制（获胜分数线）：R 重开保持，终局可按 C 回选择层更换 */
   let format: 6 | 21 = 6;
+  /** 场地复位（M10）：藏起领奖台/NPC/奖杯，角色回站位、朝向复位 */
+  const resetArena = (): void => {
+    const { player, ai, npc, podium, trophy } = game.world;
+    podium.visible = false;
+    npc.group.visible = false;
+    trophy.visible = false;
+    player.group.position.copy(PLAYER_HOME);
+    player.group.rotation.y = Math.PI;
+    ai.group.position.copy(AI_HOME);
+    ai.group.rotation.y = 0;
+    rally.updateHome('player', { x: PLAYER_HOME.x, y: 0, z: PLAYER_HOME.z });
+    rally.updateHome('ai', { x: AI_HOME.x, y: 0, z: AI_HOME.z });
+  };
+
+  /** 总冠军领奖台（M10-2）：1/2/3 名次台，玩家登顶捧杯，黑帽老朋友第三 */
+  const showChampion = (scoreText: string): void => {
+    nextLevel = 0; // 通关后重新从第一关挑战
+    const { player, ai, npc, podium, trophy } = game.world;
+    npc.setHat('cap', LEVELS[0].hatColor);
+    npc.group.visible = true;
+    podium.visible = true;
+    // 面向镜头站上台（名次台固定在 z=1.5，见 world.ts）
+    player.group.position.set(0, 0.6, 1.5);
+    player.group.rotation.y = 0;
+    ai.group.position.set(-0.9, 0.4, 1.5);
+    ai.group.rotation.y = 0;
+    npc.group.position.set(0.9, 0.25, 1.5);
+    npc.group.rotation.y = 0;
+    npc.setMood('celebrate');
+    trophy.position.set(0, 0, 0.2); // 台前悬浮
+    trophy.visible = true;
+    hud.showMessage(`🏆 总冠军！你通关了全部三关！  ${scoreText}\n按 R 重新挑战 · C 换赛制`);
+  };
+
   const showFormatMenu = (): void => {
     flow = 'menu';
     game.world.player.setMood('idle');
     game.world.ai.setMood('idle');
-    game.world.trophy.visible = false;
+    resetArena();
     hud.clearMessage();
     formatOverlay.hidden = false;
   };
@@ -216,7 +249,7 @@ async function bootstrap(): Promise<void> {
     hud.setScore(0, 0);
     game.world.player.setMood('idle');
     game.world.ai.setMood('idle');
-    game.world.trophy.visible = false;
+    resetArena();
     formatOverlay.hidden = true;
     flow = 'playing';
     hud.clearMessage();

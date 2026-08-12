@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { WobbleCharacter } from './character';
 import { buildCourt } from './court';
+import { buildPodium } from './podium';
 import { Shuttle } from './shuttle';
 import { buildTrophy } from './trophy';
 
@@ -14,10 +15,14 @@ export interface World {
   shuttle: Shuttle;
   /** 首胜奖杯（M9）：默认隐藏，领奖时刻显示并悬浮旋转 */
   trophy: THREE.Group;
+  /** 冠军领奖台（M10）：默认隐藏，通关时显示 */
+  podium: THREE.Group;
+  /** 领奖台上的第三名 NPC（M10）：默认隐藏，通关时戴上黑帽站台 */
+  npc: WobbleCharacter;
   update(dt: number, time: number): void;
 }
 
-/** 组装完整场景：灯光、球场、双方角色、羽毛球、奖杯 */
+/** 组装完整场景：灯光、球场、双方角色、羽毛球、奖杯、领奖台 */
 export function buildWorld(scene: THREE.Scene): World {
   scene.background = new THREE.Color(0x87b5d6);
   scene.fog = new THREE.Fog(0x87b5d6, 25, 45);
@@ -46,14 +51,27 @@ export function buildWorld(scene: THREE.Scene): World {
   trophy.visible = false;
   scene.add(trophy);
 
+  // 领奖台固定在场地中央偏玩家侧（镜头正对着，结算一眼看到）
+  const podium = buildPodium();
+  podium.position.set(0, 0, 1.5);
+  podium.visible = false;
+  scene.add(podium);
+
+  const npc = new WobbleCharacter({ color: 0xaed581, facing: 0 });
+  npc.group.visible = false;
+  scene.add(npc.group);
+
   return {
     player,
     ai,
     shuttle,
     trophy,
+    podium,
+    npc,
     update(_dt, time) {
       player.updateIdle(time);
       ai.updateIdle(time + 1.7);
+      if (npc.group.visible) npc.updateIdle(time + 0.9);
       if (trophy.visible) {
         // 领奖时刻：奖杯悬浮 + 缓慢旋转
         trophy.rotation.y = time * 1.6;

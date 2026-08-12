@@ -10,9 +10,9 @@ export const STRIKE_LEAD_SECONDS = SWING_DURATION * STRIKE_POINT;
 /** 动画前段免疫新挥拍，防止一次挥手重复触发（手势层 cooldown 之外的第二道保险） */
 const RESTART_GUARD = 0.55;
 /** 跳起扣杀动画时长（秒） */
-const JUMP_DURATION = 0.55;
-/** 跳起扣杀的跳跃峰值高度（米）：要明显到一眼可辨（M9） */
-const JUMP_HEIGHT = 0.55;
+const JUMP_DURATION = 0.6;
+/** 跳起扣杀的跳跃峰值高度（米）：M11 夸张化，与普通击打隔屏可辨 */
+const JUMP_HEIGHT = 0.85;
 
 /** 挥拍关键帧：[动画进度, armRotX, armRotZ]，分段线性插值；触球姿势在 STRIKE_POINT 进度处 */
 const SWING_KEYS: Record<SwingDirection, [number, number, number][]> = {
@@ -110,7 +110,7 @@ export class PlayerController {
   jumpSmash(): void {
     this.jumpPhase = 0;
     this.swingPhase = null; // 接管手臂，避免与进行中的普通挥拍抢姿势
-    this.squashVel -= 3; // 起跳前下蹲蓄力（软弹簧表现）
+    this.squashVel -= 3.5; // 起跳前下蹲蓄力（软弹簧表现）
   }
 
   update(dt: number): void {
@@ -145,7 +145,7 @@ export class PlayerController {
       if (this.jumpPhase >= 1) {
         this.jumpPhase = null;
         this.character.squashG.position.y = 0;
-        this.squashVel -= 4.5; // 落地压缩
+        this.squashVel -= 6; // 落地压缩（M11 更狠，扣杀份量感）
       }
     }
 

@@ -1,7 +1,7 @@
 /**
- * 三关闯关配置（M10，GAME_DESIGN 难度曲线与心流参数）。
+ * 三关闯关配置（M10；M11 四轮定稿数值下调：首次玩家可通关新手轨）。
  * 帽子即难度符号：黑帽新手 → 橙帽好手 → 王冠 Boss。
- * 数值为评审定调的初值，按实测微调。
+ * 数值为 GAME_DESIGN 难度曲线表的初值，按实测微调。
  */
 export interface LevelConfig {
   /** 关卡显示名 */
@@ -19,6 +19,8 @@ export interface LevelConfig {
   returnSpread: number;
   /** AI 扣杀概率（王冠专属，0=不会扣杀） */
   smashRate: number;
+  /** AI 扣杀飞行时间（秒）：越小越快越致命；新手王冠 0.95s 给足反应（M11 按关可配） */
+  smashFlight: number;
 }
 
 export const LEVELS: readonly LevelConfig[] = [
@@ -26,30 +28,33 @@ export const LEVELS: readonly LevelConfig[] = [
     name: '黑帽新手',
     hat: 'cap',
     hatColor: 0x37474f,
-    flightTime: 1.8,
-    missRate: 0.2,
-    reactionMs: 250,
+    flightTime: 1.9,
+    missRate: 0.25,
+    reactionMs: 280,
     returnSpread: 0.8,
     smashRate: 0,
+    smashFlight: 0.95,
   },
   {
     name: '橙帽好手',
     hat: 'cap',
     hatColor: 0xfb8c00,
-    flightTime: 1.4,
-    missRate: 0.1,
-    reactionMs: 200,
+    flightTime: 1.6,
+    missRate: 0.15,
+    reactionMs: 230,
     returnSpread: 1.4,
     smashRate: 0,
+    smashFlight: 0.95,
   },
   {
     name: '王冠 Boss',
     hat: 'crown',
     hatColor: 0xffd54f,
-    flightTime: 1.1,
-    missRate: 0.05,
-    reactionMs: 150,
+    flightTime: 1.3,
+    missRate: 0.08,
+    reactionMs: 180,
     returnSpread: 1.8,
-    smashRate: 0.35,
+    smashRate: 0.2,
+    smashFlight: 0.95,
   },
 ];

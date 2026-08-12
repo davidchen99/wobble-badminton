@@ -23,10 +23,12 @@ export interface RallyHomes {
 export class RallyManager {
   readonly physics = new ShuttlePhysics();
   readonly match = new MatchState();
-  /** 全局球速：回球/发球的基础飞行时间（秒），越大越慢越高（M8 定稿开局慢球；M10 由关卡配置驱动） */
-  flightTime = 1.8;
+  /** 全局球速：回球/发球的基础飞行时间（秒），越大越慢越高（M11 新手轨默认 1.9；由关卡配置驱动） */
+  flightTime = 1.9;
   /** 回球落点围绕对方站位的随机散布半径（米）——M10 关卡参数：小=球找人，大=人找球 */
   targetSpread = 0.8;
+  /** AI 扣杀飞行时间（秒）：M11 按关可配——新手王冠 0.95s 给足反应，专业魔王 0.7s 致命 */
+  smashFlightTime = 0.95;
   /** 判分回调（HUD 提示 / M6 计分板） */
   onPoint: ((scorer: Side, scores: Record<Side, number>) => void) | null = null;
   /** 球的物理接触事件回调（音效用）：触网 / 落地 */
@@ -128,7 +130,8 @@ export class RallyManager {
       y: 0,
       z: hitter === 'player' ? -zMag : zMag,
     };
-    const { vel } = this.physics.solveFlight(this.physics.pos, target, SMASH_FLIGHT_TIME);
+    // 扣杀飞行时间按关可配（M11：新手王冠慢、专业魔王快）
+    const { vel } = this.physics.solveFlight(this.physics.pos, target, this.smashFlightTime);
     this.physics.launch(vel, this.physics.pos, hitter);
     if (hitter === 'player') this.lastPlayerHitAt = this.time;
     return true;

@@ -231,6 +231,7 @@ async function bootstrap(): Promise<void> {
     const lv = LEVELS[i];
     rally.flightTime = lv.flightTime;
     rally.targetSpread = lv.returnSpread;
+    rally.smashFlightTime = lv.smashFlight;
     aiController.params.missRate = lv.missRate;
     aiController.params.reactionMs = lv.reactionMs;
     aiController.params.smashRate = lv.smashRate;

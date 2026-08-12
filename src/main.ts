@@ -24,8 +24,8 @@ const URL_PARAMS = new URLSearchParams(location.search);
 const DEBUG_DEFAULT_OPEN = URL_PARAMS.get('debug') === '1';
 /** 新手引导默认开启，?tutorial=0 跳过（老玩家/调试） */
 const TUTORIAL_ENABLED = URL_PARAMS.get('tutorial') !== '0';
-/** ?demo=1 截图/演示模式：不开摄像头不加载模型，直接展示球场静态场景 */
-const DEMO_MODE = URL_PARAMS.get('demo') === '1';
+/** ?demo 截图/演示模式（1=球场，2=领奖台）：不开摄像头不加载模型，直接展示静态场景 */
+const DEMO_MODE = URL_PARAMS.has('demo');
 
 type Flow = 'menu' | 'tutorial' | 'playing' | 'paused' | 'matchEnd';
 
@@ -394,6 +394,10 @@ async function bootstrap(): Promise<void> {
   if (DEMO_MODE) {
     hud.clearMessage();
     document.getElementById('cam-preview')?.style.setProperty('display', 'none');
+    if (URL_PARAMS.get('demo') === '2') {
+      showChampion(''); // 领奖台截图场景
+      hud.clearMessage(); // 只要画面，不要文字框
+    }
   } else {
     camera = new CameraManager();
     hud.showMessage('正在请求摄像头权限…\n请在浏览器弹窗中点击"允许"。');

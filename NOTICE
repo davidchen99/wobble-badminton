@@ -1,0 +1,12 @@
+# 第三方资产声明
+
+本项目包含以下第三方资产（位于 `public/` 目录）：
+
+## MediaPipe Tasks Vision（wasm 运行时）与 Hand Landmarker 模型
+
+- 版权所有：Google LLC
+- 许可证：Apache License 2.0（http://www.apache.org/licenses/LICENSE-2.0）
+- 来源：https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker
+- 文件：`public/mediapipe-wasm/`（tasks-vision wasm 与胶水脚本）、`public/models/hand_landmarker.task`（手部关键点模型）
+
+上述资产按 Apache 2.0 许可证条款转载，版权归原权利人所有。

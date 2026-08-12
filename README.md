@@ -1,29 +1,47 @@
-# Wobble Badminton — AI Development Starter Pack
+# Wobble Badminton 体感羽毛球
 
-一个面向普通 2021 年办公 ThinkPad 的轻量 3D 摄像头体感羽毛球小游戏项目。
+不用 VR、只靠普通摄像头就能玩的轻量 3D 体感羽毛球小游戏。站在摄像头前挥挥手，屏幕里的呆萌低模小人替你挥拍——握拳就击打，连握两下跳起扣杀。
 
-## 核心体验
-玩家站在普通摄像头前挥手/挥轻型软拍，屏幕里的呆萌低模角色同步挥拍，与 AI 连续对打。角色软乎乎、略笨拙、有喜剧感；游戏优先低延迟、流畅和击球反馈，而不是写实画质。
+![球场](docs/screenshots/court.png)
+![冠军领奖台](docs/screenshots/champion.png)
 
-## 给 Codex / Kimi 的第一条指令
-请先完整阅读根目录 `AGENTS.md`，再阅读 `docs/` 中所有规格文档。不要直接制作完整三关。先按照 `MVP_PLAN.md` 和 `TASKS.md` 完成 Vertical Slice。每完成一个可运行里程碑，运行检查、记录结果、更新 TASKS.md，再继续下一步。
+## 在线玩
 
-## 快速开始（无需命令行）
-双击桌面上的 **Wobble Badminton** 图标（或项目根目录的 `启动游戏.bat`）：自动启动服务器并打开浏览器。关闭弹出的黑色控制台窗口即退出游戏。
+👉 **https://davidchen99.github.io/wobble-badminton/**
 
-> 桌面图标由 `make_shortcut.ps1` 生成；若快捷方式丢失可重新运行该脚本（会同时重新生成 `icon.ico`）。
+- 电脑 Chrome / Edge 体验最佳；需要允许摄像头权限
+- 手机请横屏（未做专门适配，能玩但界面按桌面设计）
+
+## 怎么玩
+
+- **移动**：空手模式下，手左右移 = 跑位，手往前伸/收回 = 前后移动
+- **击打**：握拳一下 = 正板直打（球到附近撩一下就能中）
+- **扣杀**：连握两下 = 跳起扣杀，球更快更平
+- **键盘+持物模式**：按 M 切换；WASD 移动 + 手持小物件快速挥动 = 击打
+- **赛制**：6 分快局（默认）/ 21 分标准赛（右上角入口），先到分数直接获胜
+- **关卡**：新手三关（黑帽新手 → 橙帽好手 → 王冠 Boss）；通关后解锁专业三关（紫影 → 紫电 → 魔王，紫色荧光，反应快、会扣杀）
+- **荣誉**：单场首胜拿小奖杯；通关三关上 1/2/3 领奖台
+- **帮助**：左上角 ? 按钮或按 H，可随时重进新手引导
+
+## 本地运行
+
+- Windows：双击 `启动游戏.bat`（自动启动服务器并打开浏览器；关闭黑色控制台窗口即退出）
+- 命令行：`npm install && npm run dev`，浏览器打开 http://localhost:5173
+
+## 技术
+
+Vite + TypeScript + Three.js + MediaPipe Tasks Vision（手部追踪，模型与 wasm 已本地化，推理跑在 Worker 里不卡渲染）+ Web Audio（全程序化音效，无音频素材）。
 
 ## 文档
-- `AGENTS.md` — AI 开发规则与最高原则
+
+- `AGENTS.md` — 开发规则与最高原则
 - `docs/PRD.md` — 产品需求
-- `docs/GAME_DESIGN.md` — 核心玩法
+- `docs/GAME_DESIGN.md` — 核心玩法与难度数值
 - `docs/TECH_SPEC.md` — 技术架构与性能预算
-- `docs/ART_DIRECTION.md` — 美术与动画方向
-- `docs/MVP_PLAN.md` — MVP/Vertical Slice 计划
-- `TASKS.md` — 可执行开发任务清单
-- `PROMPT_START.md` — 可直接复制给 Codex/Kimi 的启动提示词
+- `docs/ART_DIRECTION.md` — 美术方向
+- `docs/MVP_PLAN.md` — 里程碑计划
+- `TASKS.md` — 开发任务清单与实测记录
 
-## 建议技术栈
-Vite + TypeScript + Three.js + MediaPipe Tasks Vision + Web Audio API。
+## License
 
-> 本包是“开发规格启动包”，故意不预先生成大量未经验证的游戏代码。AI 应按文档从最小可运行闭环开始建立代码，以避免架构过度设计。
+MIT（见 `LICENSE`）。手部追踪模型与 wasm 为 Google MediaPipe 资产，Apache 2.0（见 `NOTICE`）。

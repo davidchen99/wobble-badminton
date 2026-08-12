@@ -9,9 +9,9 @@ describe('Tutorial 新手引导（握拳版）', () => {
     for (let i = 0; i < 40; i++) t.update(1 / 60, true); // 举手 0.5s+
     expect(t.step).toBe('grip');
 
-    t.onGrip(false); // 握拳一次
+    t.onGrip(1.0); // 握拳一次
     expect(t.step).toBe('doubleGrip');
-    t.onGrip(true); // 连握
+    t.onGrip(1.5); // 0.5s 内第二握（1.2s 教学窗口内）
     expect(t.step).toBe('ready');
 
     for (let i = 0; i < 60 * 3; i++) t.update(1 / 60, true);
@@ -28,14 +28,14 @@ describe('Tutorial 新手引导（握拳版）', () => {
     expect(t.step).toBe('grip');
   });
 
-  it('扣球步骤必须是连握（单握不推进）', () => {
+  it('连握步：1.2s 内两握通过；太慢则以本次为新的第一握（M13 放宽）', () => {
     const t = new Tutorial();
     for (let i = 0; i < 40; i++) t.update(1 / 60, true);
-    t.onGrip(false);
+    t.onGrip(1.0);
     expect(t.step).toBe('doubleGrip');
-    t.onGrip(false); // 窗口外的普通握拳不算连握
+    t.onGrip(2.5); // 距上次 1.5s > 1.2s：不算连握，但记为新的第一握
     expect(t.step).toBe('doubleGrip');
-    t.onGrip(true);
+    t.onGrip(3.0); // 距上次 0.5s < 1.2s：通过
     expect(t.step).toBe('ready');
   });
 
@@ -55,9 +55,9 @@ describe('Tutorial 新手引导（握拳版）', () => {
     expect(t.sketch).toBe('showHand');
     for (let i = 0; i < 40; i++) t.update(1 / 60, true);
     expect(t.sketch).toBe('fist');
-    t.onGrip(false);
+    t.onGrip(1.0);
     expect(t.sketch).toBe('doubleFist');
-    t.onGrip(true);
+    t.onGrip(1.5);
     expect(t.sketch).toBe('move');
     for (let i = 0; i < 60 * 3; i++) t.update(1 / 60, true);
     expect(t.sketch).toBeNull();

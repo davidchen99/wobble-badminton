@@ -29,10 +29,11 @@ export interface FistParams {
 }
 
 export const DEFAULT_FIST_PARAMS: FistParams = {
-  enterRatio: 1.35,
-  exitRatio: 1.6,
+  // M13 实测放宽：张开判定太严会导致"松一下再握"注册不上（引导卡第三步、实战扣球不出）
+  enterRatio: 1.4,
+  exitRatio: 1.5,
   minIntervalMs: 160,
-  doubleGripMs: 350,
+  doubleGripMs: 600,
 };
 
 export interface GripEvent {

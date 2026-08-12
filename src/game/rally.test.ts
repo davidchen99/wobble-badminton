@@ -13,7 +13,7 @@ function makeRally(): RallyManager {
 }
 
 describe('RallyManager.smash 连握扣球', () => {
-  it('玩家击中后 0.6s 内可补扣：球速明显加快、只补一次', () => {
+  it('玩家击中后可补扣（M13 起无时限）：球速明显加快、只补一次', () => {
     const rally = makeRally();
     rally.update(1 / 60); // 触发首次发球进入 flying
 

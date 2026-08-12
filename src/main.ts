@@ -468,7 +468,8 @@ async function bootstrap(): Promise<void> {
         // 握拳 = 击打（仅空手模式；持物时手一直握着，握拳检测无意义）
         const grip = controlMode === 'bare' ? fist.update(hand.landmarks, t / 1000) : null;
         if (grip && flow === 'tutorial') {
-          tutorial.onGrip(grip.double);
+          // M13：引导连握步用教学自己的 1.2s 窗口，不再依赖检测器的 double 标记
+          tutorial.onGrip(grip.t);
         }
         if (grip && flow === 'playing') {
           if (grip.double) {

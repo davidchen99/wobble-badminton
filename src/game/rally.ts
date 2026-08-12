@@ -4,8 +4,6 @@ import type { Shuttle } from './shuttle';
 
 /** 回合结束到重新发球的间隔（秒） */
 const SERVE_DELAY = 1.4;
-/** 扣球补刀窗口：击中后多少秒内允许连握加成（秒） */
-const SMASH_WINDOW = 0.6;
 /** 扣球基础飞行时间（秒）：比普通回球（默认 1.8）快得多、更平 */
 const SMASH_FLIGHT_TIME = 0.7;
 
@@ -42,7 +40,7 @@ export class RallyManager {
   private timer = 0;
   private pendingScorer: Side | null = null;
   private time = 0;
-  /** 玩家最近一次成功击中的时刻（连握扣球窗口判定） */
+  /** 玩家本板击中的标记：有限值=可补刀，-Infinity=不可。M13 起无补刀时限，仅作"一板一扣"开关 */
   private lastPlayerHitAt = -Infinity;
 
   constructor(shuttle: Shuttle, homes: RallyHomes) {
@@ -91,13 +89,14 @@ export class RallyManager {
   }
 
   /**
-   * 连握扣球：玩家刚击中且球还在飞向 AI 时，第二握把球"补"成扣杀——
-   * 更快更平，落点压向对方后场。返回是否补刀成功。
+   * 连握扣球：本板由玩家击中且球还在飞向 AI 时，第二握把球"补"成扣杀——
+   * 更快更平，落点压向对方后场。M13：取消补刀时限（靠识别链放宽保证手感），
+   * 每板限补一次。返回是否补刀成功。
    */
   smash(): boolean {
     if (this.phase !== 'flying' || !this.physics.active) return false;
     if (this.physics.lastHitter !== 'player') return false;
-    if (this.time - this.lastPlayerHitAt > SMASH_WINDOW) return false;
+    if (this.lastPlayerHitAt === -Infinity) return false; // 一板只能补一次
     if (this.physics.vel.z >= 0) return false; // 只补正在飞向 AI 的球
 
     const aiHome = this.homes.ai;
@@ -200,6 +199,7 @@ export class RallyManager {
     this.physics.launch(vel, from, server);
     this.phase = 'flying';
     this.pendingScorer = null;
+    this.lastPlayerHitAt = -Infinity; // 新一球：发球不可补刀，等玩家真正击中才开放
   }
 
   private finishPoint(): void {

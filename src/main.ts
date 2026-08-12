@@ -65,6 +65,9 @@ async function bootstrap(): Promise<void> {
 
   let flow: Flow = 'menu';
   const tutorial = new Tutorial();
+  /** 操控模式：bare=空手（握拳/手位），keyboard=键盘+持物（WASD/快挥） */
+  let controlMode: 'bare' | 'keyboard' = 'bare';
+  const keysDown = new Set<string>();
 
   // ---- 击球反馈：声音 + 镜头冲击 + 球闪 ----
   let shuttleFlash = 0;
@@ -99,8 +102,15 @@ async function bootstrap(): Promise<void> {
   };
   window.addEventListener('keydown', (e) => {
     sound.ensure(); // 任何首次按键都尝试解锁音频（引导自动开球路径）
+    keysDown.add(e.code);
     if (e.code === 'Backquote') {
       debug.toggle();
+      return;
+    }
+    if (e.code === 'KeyM') {
+      controlMode = controlMode === 'bare' ? 'keyboard' : 'bare';
+      hud.setMode(controlMode);
+      movement.reset(); // 切回空手模式时重新校准手大小基准
       return;
     }
     if (e.code === 'Space') {
@@ -127,6 +137,9 @@ async function bootstrap(): Promise<void> {
     sound.ensure();
     if (flow === 'menu') startGame();
     else if (flow === 'tutorial') tutorial.skip();
+  });
+  window.addEventListener('keyup', (e) => {
+    keysDown.delete(e.code);
   });
 
   // ---- 摄像头与追踪 ----
@@ -194,15 +207,18 @@ async function bootstrap(): Promise<void> {
       if (swing) {
         lastSwing = swing;
         debug.flashSwing();
-        // M8：空手模式下快挥不触发击打，挥动仅作演示/调试
+        // 持物模式：快速挥动 = 击打；空手模式快挥仅作演示/调试
+        if (flow === 'playing' && controlMode === 'keyboard') {
+          playerController.swing({ direction: 'right', speed: swing.speed, time: swing.time });
+        }
         if (flow === 'tutorial') {
           playerController.swing(swing);
           tutorial.onSwing(swing.direction);
         }
       }
 
-      // 握拳 = 击打（空手模式核心输入）
-      const grip = fist.update(hand.landmarks, t / 1000);
+      // 握拳 = 击打（仅空手模式；持物时手一直握着，握拳检测无意义）
+      const grip = controlMode === 'bare' ? fist.update(hand.landmarks, t / 1000) : null;
       if (grip && flow === 'playing') {
         if (grip.double) {
           // 连握扣球：给刚打出去的球补刀
@@ -236,31 +252,46 @@ async function bootstrap(): Promise<void> {
       aiController.update(dt);
       rally.update(dt);
 
-      // 身体移动控制角色：慢动手部位移 → 场地目标（快动/握拳是击打，不影响位置）
-      const speed = Math.hypot(gesture.velocity.x, gesture.velocity.y);
-      movement.update(
-        lastHand
-          ? { x: lastHand.palm.x, y: lastHand.palm.y, size: handSize(lastHand) }
-          : null,
-        speed,
-        dt,
-        fist.isFist,
-      );
-      const target = mapToCourt(
-        movement.pos,
-        { x: PLAYER_HOME.x, z: PLAYER_HOME.z },
-        movement.sizeRatio,
-      );
-      const pp = game.world.player.group.position;
-      const dx = target.x - pp.x;
-      const dz = target.z - pp.z;
-      const dist = Math.hypot(dx, dz);
-      if (dist > 1e-4) {
-        const step = Math.min(dist, MOVE_RANGE.speed * dt);
-        pp.x += (dx / dist) * step;
-        pp.z += (dz / dist) * step;
-        // 击球窗口与 AI 落点选择跟随玩家站位
-        rally.updateHome('player', { x: pp.x, y: 0, z: pp.z });
+      // 身体移动控制角色：两种模式二选一
+      const pp0 = game.world.player.group.position;
+      if (controlMode === 'keyboard') {
+        // WASD：W 前（朝网）S 后 A 左 D 右，限速平滑
+        const mx = (keysDown.has('KeyD') ? 1 : 0) - (keysDown.has('KeyA') ? 1 : 0);
+        const mz = (keysDown.has('KeyS') ? 1 : 0) - (keysDown.has('KeyW') ? 1 : 0);
+        if (mx !== 0 || mz !== 0) {
+          const len = Math.hypot(mx, mz);
+          pp0.x += (mx / len) * MOVE_RANGE.speed * dt;
+          pp0.z += (mz / len) * MOVE_RANGE.speed * dt;
+          pp0.x = Math.max(PLAYER_HOME.x - MOVE_RANGE.x, Math.min(PLAYER_HOME.x + MOVE_RANGE.x, pp0.x));
+          pp0.z = Math.max(PLAYER_HOME.z - MOVE_RANGE.z, Math.min(PLAYER_HOME.z + MOVE_RANGE.z, pp0.z));
+          rally.updateHome('player', { x: pp0.x, y: 0, z: pp0.z });
+        }
+      } else {
+        // 空手模式：慢动手部位移（左右）+ 手大小变化（前后）→ 场地目标
+        const speed = Math.hypot(gesture.velocity.x, gesture.velocity.y);
+        movement.update(
+          lastHand
+            ? { x: lastHand.palm.x, y: lastHand.palm.y, size: handSize(lastHand) }
+            : null,
+          speed,
+          dt,
+          fist.isFist,
+        );
+        const target = mapToCourt(
+          movement.pos,
+          { x: PLAYER_HOME.x, z: PLAYER_HOME.z },
+          movement.sizeRatio,
+        );
+        const dx = target.x - pp0.x;
+        const dz = target.z - pp0.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist > 1e-4) {
+          const step = Math.min(dist, MOVE_RANGE.speed * dt);
+          pp0.x += (dx / dist) * step;
+          pp0.z += (dz / dist) * step;
+          // 击球窗口与 AI 落点选择跟随玩家站位
+          rally.updateHome('player', { x: pp0.x, y: 0, z: pp0.z });
+        }
       }
     } else if (flow === 'tutorial') {
       // 引导中角色也响应挥拍（纯演示，不碰球），并实时反馈识别状态

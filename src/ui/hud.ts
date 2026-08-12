@@ -20,6 +20,11 @@ export class Hud {
     mustGet('hud-score').textContent = `${player} : ${ai}`;
   }
 
+  /** 当前操控模式常显 */
+  setMode(mode: 'bare' | 'keyboard'): void {
+    mustGet('hud-mode').textContent = mode === 'bare' ? '模式：空手' : '模式：键盘+持物';
+  }
+
   /** 一般提示（如"等待摄像头授权…"）。 */
   showMessage(text: string): void {
     this.messageEl.textContent = text;

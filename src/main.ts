@@ -131,12 +131,26 @@ async function bootstrap(): Promise<void> {
     hud.setScore(scores.player, scores.ai);
     sound.point(scorer);
   };
+  /** 本场次是否已拿过首胜奖杯（M9：仅首次获胜有领奖时刻，刷新页面重置） */
+  let firstWinDone = false;
   rally.onMatchEnd = (winner, scores) => {
     flow = 'matchEnd';
     const win = winner === 'player';
-    hud.showMessage(
-      `${win ? '你赢了！' : 'AI 获胜'}  ${scores.player} : ${scores.ai}\n按 R 再来一局 · C 换赛制`,
-    );
+    if (win && !firstWinDone) {
+      // 首次获胜：奖杯落在玩家身前，悬浮转动的领奖时刻
+      firstWinDone = true;
+      const playerPos = game.world.player.group.position;
+      const trophy = game.world.trophy;
+      trophy.position.set(playerPos.x, 0, playerPos.z - 1.3);
+      trophy.visible = true;
+      hud.showMessage(
+        `首次获胜！🏆 这是你的奖杯！  ${scores.player} : ${scores.ai}\n按 R 再来一局 · C 换赛制`,
+      );
+    } else {
+      hud.showMessage(
+        `${win ? '你赢了！🎉' : 'AI 获胜'}  ${scores.player} : ${scores.ai}\n按 R 再来一局 · C 换赛制`,
+      );
+    }
     game.world.player.setMood(win ? 'celebrate' : 'defeat');
     game.world.ai.setMood(win ? 'defeat' : 'celebrate');
   };
@@ -156,6 +170,7 @@ async function bootstrap(): Promise<void> {
     flow = 'menu';
     game.world.player.setMood('idle');
     game.world.ai.setMood('idle');
+    game.world.trophy.visible = false;
     hud.clearMessage();
     formatOverlay.hidden = false;
   };
@@ -169,6 +184,7 @@ async function bootstrap(): Promise<void> {
     hud.setScore(0, 0);
     game.world.player.setMood('idle');
     game.world.ai.setMood('idle');
+    game.world.trophy.visible = false;
     formatOverlay.hidden = true;
     flow = 'playing';
     hud.clearMessage();

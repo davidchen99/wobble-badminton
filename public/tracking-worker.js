@@ -25,10 +25,10 @@ self.onmessage = async (ev) => {
 
   if (msg.type === 'init') {
     try {
-      importScripts('/mediapipe-wasm/vision_bundle.js');
-      const vision = await Vision.FilesetResolver.forVisionTasks('/mediapipe-wasm');
+      importScripts('mediapipe-wasm/vision_bundle.js');
+      const vision = await Vision.FilesetResolver.forVisionTasks('mediapipe-wasm');
       const makeOptions = (delegate) => ({
-        baseOptions: { modelAssetPath: '/models/hand_landmarker.task', delegate },
+        baseOptions: { modelAssetPath: 'models/hand_landmarker.task', delegate },
         runningMode: 'VIDEO',
         numHands: 1,
         minHandDetectionConfidence: 0.5,

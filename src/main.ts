@@ -24,6 +24,8 @@ const URL_PARAMS = new URLSearchParams(location.search);
 const DEBUG_DEFAULT_OPEN = URL_PARAMS.get('debug') === '1';
 /** 新手引导默认开启，?tutorial=0 跳过（老玩家/调试） */
 const TUTORIAL_ENABLED = URL_PARAMS.get('tutorial') !== '0';
+/** ?demo=1 截图/演示模式：不开摄像头不加载模型，直接展示球场静态场景 */
+const DEMO_MODE = URL_PARAMS.get('demo') === '1';
 
 type Flow = 'menu' | 'tutorial' | 'playing' | 'paused' | 'matchEnd';
 
@@ -386,46 +388,102 @@ async function bootstrap(): Promise<void> {
     keysDown.delete(e.code);
   });
 
-  // ---- 摄像头与追踪 ----
-  const camera = new CameraManager();
-  hud.showMessage('正在请求摄像头权限…\n请在浏览器弹窗中点击"允许"。');
-  try {
-    await camera.start();
-  } catch (err) {
-    hud.showError(err instanceof Error ? err.message : String(err));
-    return;
-  }
-
-  const preview = document.getElementById('cam-preview');
-  preview?.prepend(camera.video);
-  // 点击预览切换大画幅；阻止冒泡避免触发"跳过引导/开始"的点击语义
-  preview?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    preview.classList.toggle('large');
-  });
-
-  hud.showMessage('摄像头已就绪，正在加载手部追踪模型…');
-  let tracker: WorkerTracker;
-  try {
-    tracker = await WorkerTracker.create();
-  } catch (err) {
-    hud.showError(err instanceof Error ? err.message : String(err));
-    return;
-  }
-  console.info(`[tracking] delegate = ${tracker.delegate}`);
-
-  tutorial.onStepChange = (step) => {
-    if (step === 'done') {
-      hideTutorial();
-      showFormatMenu(); // 引导完成 → 赛制选择（默认 6 分快局）
-    } else {
-      showTutorialStep();
-    }
-  };
-  if (TUTORIAL_ENABLED) {
-    enterTutorial();
+  // ---- 摄像头与追踪（demo 模式整段跳过） ----
+  let camera: CameraManager | null = null;
+  let tracker: WorkerTracker | null = null;
+  if (DEMO_MODE) {
+    hud.clearMessage();
+    document.getElementById('cam-preview')?.style.setProperty('display', 'none');
   } else {
-    showFormatMenu();
+    camera = new CameraManager();
+    hud.showMessage('正在请求摄像头权限…\n请在浏览器弹窗中点击"允许"。');
+    try {
+      await camera.start();
+    } catch (err) {
+      hud.showError(err instanceof Error ? err.message : String(err));
+      return;
+    }
+
+    const preview = document.getElementById('cam-preview');
+    preview?.prepend(camera.video);
+    // 点击预览切换大画幅；阻止冒泡避免触发"跳过引导/开始"的点击语义
+    preview?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      preview.classList.toggle('large');
+    });
+
+    hud.showMessage('摄像头已就绪，正在加载手部追踪模型…');
+    try {
+      tracker = await WorkerTracker.create();
+    } catch (err) {
+      hud.showError(err instanceof Error ? err.message : String(err));
+      return;
+    }
+    console.info(`[tracking] delegate = ${tracker.delegate}`);
+
+    tutorial.onStepChange = (step) => {
+      if (step === 'done') {
+        hideTutorial();
+        showFormatMenu(); // 引导完成 → 赛制选择（默认 6 分快局）
+      } else {
+        showTutorialStep();
+      }
+    };
+    if (TUTORIAL_ENABLED) {
+      enterTutorial();
+    } else {
+      showFormatMenu();
+    }
+
+    tracker.onResult = (hand, inferMs, t) => {
+      lastHand = hand;
+      trackFrames++;
+      inferEma = inferEma === 0 ? inferMs : inferEma * 0.7 + inferMs * 0.3;
+      // 渲染优先：推理耗时的 1.5 倍作为投递间隔（33ms~250ms）
+      detectIntervalMs = Math.min(250, Math.max(DETECT_INTERVAL_MS, inferEma * 1.5));
+      if (hand) {
+        const swing = gesture.addSample({
+          t: t / 1000, // 用帧捕获时刻计算速度，抵消推理延迟
+          x: hand.palm.x,
+          y: hand.palm.y,
+          confidence: hand.confidence,
+        });
+        if (swing) {
+          lastSwing = swing;
+          debug.flashSwing();
+          // 持物模式：快速挥动 = 击打；空手模式快挥仅作演示/调试
+          if (flow === 'playing' && controlMode === 'keyboard') {
+            playerController.swing({ direction: 'right', speed: swing.speed, time: swing.time });
+          }
+          if (flow === 'tutorial') {
+            // 引导中挥动只作角色演示（教学用握拳判定，见下方 grip）
+            playerController.swing(swing);
+          }
+        }
+
+        // 握拳 = 击打（仅空手模式；持物时手一直握着，握拳检测无意义）
+        const grip = controlMode === 'bare' ? fist.update(hand.landmarks, t / 1000) : null;
+        if (grip && flow === 'tutorial') {
+          tutorial.onGrip(grip.double);
+        }
+        if (grip && flow === 'playing') {
+          if (grip.double) {
+            // 连握扣球：给刚打出去的球补刀 + 角色跳起扣杀（M12：不再晃镜头，跳起本身就是反馈）
+            if (rally.smash()) {
+              playerController.jumpSmash();
+              sound.hit(3.5);
+              shuttleFlash = 1.6;
+            }
+          } else {
+            // 正板直打：单一标准挥拍动作，onStrike 触球点做窗口判定
+            playerController.swing({ direction: 'right', speed: 2.2, time: grip.t });
+          }
+        }
+      } else {
+        gesture.onLost();
+        fist.update(null, t / 1000);
+      }
+    };
   }
 
   let lastDetectAt = 0;
@@ -438,62 +496,11 @@ async function bootstrap(): Promise<void> {
   let lastSwing: SwingEvent | null = null;
   let statsAccum = 0;
 
-  tracker.onResult = (hand, inferMs, t) => {
-    lastHand = hand;
-    trackFrames++;
-    inferEma = inferEma === 0 ? inferMs : inferEma * 0.7 + inferMs * 0.3;
-    // 渲染优先：推理耗时的 1.5 倍作为投递间隔（33ms~250ms）
-    detectIntervalMs = Math.min(250, Math.max(DETECT_INTERVAL_MS, inferEma * 1.5));
-    if (hand) {
-      const swing = gesture.addSample({
-        t: t / 1000, // 用帧捕获时刻计算速度，抵消推理延迟
-        x: hand.palm.x,
-        y: hand.palm.y,
-        confidence: hand.confidence,
-      });
-      if (swing) {
-        lastSwing = swing;
-        debug.flashSwing();
-        // 持物模式：快速挥动 = 击打；空手模式快挥仅作演示/调试
-        if (flow === 'playing' && controlMode === 'keyboard') {
-          playerController.swing({ direction: 'right', speed: swing.speed, time: swing.time });
-        }
-        if (flow === 'tutorial') {
-          // 引导中挥动只作角色演示（教学用握拳判定，见下方 grip）
-          playerController.swing(swing);
-        }
-      }
-
-      // 握拳 = 击打（仅空手模式；持物时手一直握着，握拳检测无意义）
-      const grip = controlMode === 'bare' ? fist.update(hand.landmarks, t / 1000) : null;
-      if (grip && flow === 'tutorial') {
-        tutorial.onGrip(grip.double);
-      }
-      if (grip && flow === 'playing') {
-        if (grip.double) {
-          // 连握扣球：给刚打出去的球补刀 + 角色跳起扣杀（纯演出）
-          if (rally.smash()) {
-            playerController.jumpSmash();
-            sound.hit(3.5);
-            game.addShake(0.16);
-            shuttleFlash = 1.6;
-          }
-        } else {
-          // 正板直打：单一标准挥拍动作，onStrike 触球点做窗口判定
-          playerController.swing({ direction: 'right', speed: 2.2, time: grip.t });
-        }
-      }
-    } else {
-      gesture.onLost();
-      fist.update(null, t / 1000);
-    }
-  };
-
   game.onFrame = (dt) => {
     const now = performance.now();
 
     // 投递推理帧：频率自适应，Worker 忙时自动丢帧，渲染永不被推理阻塞
-    if (camera.ready && now - lastDetectAt >= detectIntervalMs) {
+    if (camera?.ready && tracker && now - lastDetectAt >= detectIntervalMs) {
       lastDetectAt = now;
       tracker.submit(camera.video, now);
     }
@@ -581,7 +588,7 @@ async function bootstrap(): Promise<void> {
         debug.updateStats({
           renderFps: game.currentFps,
           trackingFps,
-          delegate: tracker.delegate,
+          delegate: tracker?.delegate ?? null,
           inferMs: inferEma,
           detectIntervalMs: detectIntervalMs,
           confidence: lastHand?.confidence ?? null,

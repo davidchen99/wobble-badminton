@@ -26,7 +26,8 @@ export class WorkerTracker {
   static create(): Promise<WorkerTracker> {
     return new Promise((resolve, reject) => {
       // 经典 Worker + public/ 静态文件：完全绕开 Vite 模块图（dev/build 行为一致）
-      const worker = new Worker('/tracking-worker.js');
+      // 相对路径：兼容 GitHub Pages 子路径托管（M12）
+      const worker = new Worker('tracking-worker.js');
       const instance = new WorkerTracker(worker);
       worker.onmessage = (ev: MessageEvent) => {
         const msg = ev.data;

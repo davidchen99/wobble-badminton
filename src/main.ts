@@ -13,8 +13,10 @@ import { Tutorial, type TutorialStep } from './game/tutorial';
 import { AI_HOME, PLAYER_HOME } from './game/world';
 import { PlayerController } from './player/PlayerController';
 import { DebugPanel } from './ui/DebugPanel';
+import { IS_TOUCH } from './ui/device';
 import { HelpPanel } from './ui/HelpPanel';
 import { Hud } from './ui/hud';
+import { setupPipPreview } from './ui/pipPreview';
 import { startSketch, type SketchKind } from './ui/sketches';
 
 /** 推理间隔下限（毫秒）：追踪不必每渲染帧执行，与渲染解耦（TECH_SPEC） */
@@ -36,6 +38,7 @@ async function bootstrap(): Promise<void> {
   const hud = new Hud();
   const game = new Game(app, hud);
   game.start();
+  if (IS_TOUCH) document.body.classList.add('touch'); // M14：触屏设备的全局样式钩子
 
   const gesture = new GestureDetector();
   const fist = new FistDetector();
@@ -431,12 +434,11 @@ async function bootstrap(): Promise<void> {
     }
 
     const preview = document.getElementById('cam-preview');
-    preview?.prepend(camera.video);
-    // 点击预览切换大画幅；阻止冒泡避免触发"跳过引导/开始"的点击语义
-    preview?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      preview.classList.toggle('large');
-    });
+    if (preview) {
+      preview.prepend(camera.video);
+      // M14：点按切大小窗 + 可拖动 + 位置记忆（内部已做冒泡阻断）
+      setupPipPreview(preview, IS_TOUCH);
+    }
 
     // 黑屏自检：摄像头"能打开但全黑"（物理遮挡开关/隐私模式）比报错更常见也更难排查，
     // 采样 5 帧平均亮度，全黑直接给针对性指引（ThinkShutter / Lenovo 隐私模式 / 相机应用对照）

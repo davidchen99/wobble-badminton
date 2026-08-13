@@ -142,10 +142,16 @@
         pointer-events: auto;
         cursor: pointer;
         transition: width 0.15s, height 0.15s;
+        touch-action: none; /* M14：触控拖动预览时不滚屏/不缩放手势 */
       }
       #cam-preview.large {
         width: 480px;
         height: 360px;
+      }
+      /* M14 触屏默认小窗（点按可展开大窗） */
+      #cam-preview.small {
+        width: 108px;
+        height: 81px;
       }
       #cam-preview video,
       #cam-overlay {

@@ -30,7 +30,7 @@
       #hud-top {
         position: absolute;
         top: 10px;
-        left: 64px;
+        left: 106px; /* 给帮助/暂停两个圆按钮让位 */
         font-size: 13px;
         line-height: 1.6;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
@@ -215,6 +215,67 @@
       }
       #help-btn:hover {
         background: rgba(60, 64, 74, 0.9);
+      }
+      /* 暂停按钮（M14：左上，帮助右侧；手机没有空格键） */
+      #pause-btn {
+        position: absolute;
+        top: 10px;
+        left: 58px;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        border: 2px solid rgba(232, 234, 238, 0.7);
+        background: rgba(20, 22, 28, 0.75);
+        color: #e8eaee;
+        font-size: 16px;
+        cursor: pointer;
+        pointer-events: auto;
+      }
+      #pause-btn:hover {
+        background: rgba(60, 64, 74, 0.9);
+      }
+      /* 大按钮操作层（M14：结算/晋级/暂停的可点按钮，手机替代 R/C/空格，电脑同用鼠标） */
+      #action-overlay {
+        position: absolute;
+        left: 50%;
+        bottom: 14%;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        pointer-events: auto;
+      }
+      #action-overlay[hidden] {
+        display: none;
+      }
+      #action-overlay button {
+        min-width: 230px;
+        padding: 14px 26px;
+        border: none;
+        border-radius: 12px;
+        font-size: 18px;
+        font-weight: 700;
+        cursor: pointer;
+        background: #3a7d44;
+        color: #fff;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      }
+      #action-overlay button:hover {
+        background: #4e8f52;
+      }
+      #action-overlay button.secondary {
+        min-width: 170px;
+        padding: 10px 22px;
+        border: 1px solid rgba(232, 234, 238, 0.4);
+        background: rgba(20, 22, 28, 0.85);
+        font-size: 15px;
+        font-weight: 500;
+      }
+      /* 触屏设备（M14）：隐藏键盘专属提示与模式行（手机锁空手模式） */
+      body.touch #hud-hint,
+      body.touch #hud-mode {
+        display: none;
       }
       /* 帮助层 */
       #help-overlay {
@@ -480,6 +541,11 @@
         <canvas id="cam-overlay" width="480" height="360"></canvas>
       </div>
       <button id="help-btn" title="帮助 (H)">?</button>
+      <button id="pause-btn" title="暂停 / 继续">⏸</button>
+      <div id="action-overlay" hidden>
+        <button id="action-primary"></button>
+        <button id="action-secondary" class="secondary"></button>
+      </div>
       <div id="help-overlay" hidden>
         <div id="help-card">
           <h2>怎么玩 Wobble Badminton</h2>

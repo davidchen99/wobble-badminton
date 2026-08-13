@@ -56,9 +56,15 @@ export function setupPipPreview(el: HTMLElement, isTouch: boolean): void {
     active = false;
     el.releasePointerCapture(e.pointerId);
     if (moved) {
+      // 吸附到最近的角落（上边留 56px 避开帮助/暂停按钮），不再"东摇西摇"
       const r = el.getBoundingClientRect();
+      const m = 12;
+      const left = r.left + r.width / 2 < window.innerWidth / 2 ? m : window.innerWidth - r.width - m;
+      const top =
+        r.top + r.height / 2 < window.innerHeight / 2 ? 56 : window.innerHeight - r.height - m;
+      applyPos(el, left, top);
       try {
-        localStorage.setItem(POS_KEY, JSON.stringify({ left: r.left, top: r.top }));
+        localStorage.setItem(POS_KEY, JSON.stringify({ left, top }));
       } catch {
         /* 记不上就算了 */
       }

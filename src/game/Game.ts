@@ -91,20 +91,33 @@ export class Game {
   }
 
   /**
-   * 取景（M14）：横屏沿用经典身后视角；竖屏（aspect<1）拉远相机 + 抬 FOV，
-   * 保证场地两宽边完整可见。resize/旋屏时同步刷新，并复位震屏基准。
+   * 取景（M14-3，iPhone 竖屏实测修正版）：
+   * 横屏沿用经典身后视角；竖屏（aspect<1）不拉远（拉远会人物太小、镜头探出地面边缘
+   * 露出底色），保持近距离、FOV 略抬、镜头下压——用场地填满高屏，砍掉多余蓝天。
+   * ?fov= & ?pitchy= 可在竖屏下调参（真机取景微调用）。
    */
   private applyFraming(aspect: number): void {
     if (aspect < 1) {
-      const k = Math.min(1.6, 0.85 / aspect + 0.55);
-      this.camera.position.set(0, 6.2 * k, 11.2 * k);
-      this.camera.fov = Math.min(68, 50 + (1 - aspect) * 36);
+      this.camera.position.set(0, 6.2, 11.2);
+      this.camera.fov = 50;
+      this.camera.aspect = aspect;
+      this.camera.lookAt(0, -1.8, -1.6); // 俯角约 32°：场地填满画面，只留一线天
     } else {
       this.camera.position.set(0, 6.2, 11.2);
       this.camera.fov = 50;
+      this.camera.aspect = aspect;
+      this.camera.lookAt(0, 0.6, -1.2);
     }
-    this.camera.aspect = aspect;
-    this.camera.lookAt(0, 0.6, -1.2);
+    // 真机调参钩子（仅竖屏有效）
+    const q = new URLSearchParams(location.search);
+    const fov = Number(q.get('fov'));
+    const pitchY = Number(q.get('pitchy'));
+    if (aspect < 1 && fov >= 30 && fov <= 90) {
+      this.camera.fov = fov;
+    }
+    if (aspect < 1 && Number.isFinite(pitchY) && q.has('pitchy')) {
+      this.camera.lookAt(0, pitchY, -1.6);
+    }
     this.camera.updateProjectionMatrix();
     this.cameraBase.copy(this.camera.position); // 震屏基准同步，避免旋屏后镜头回弹
   }

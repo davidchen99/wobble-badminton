@@ -514,6 +514,9 @@
       }
       /* M14 竖屏/小屏：HUD 与卡片整体缩小，避免遮挡画面 */
       @media (max-width: 640px) {
+        #hud-title {
+          display: none; /* 小屏藏标题，给计分板让位（实测会撞车） */
+        }
         #hud-score {
           font-size: 26px;
           top: 8px;

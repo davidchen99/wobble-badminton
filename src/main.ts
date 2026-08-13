@@ -142,7 +142,11 @@ async function bootstrap(): Promise<void> {
     flow = 'tutorial';
     showTutorialStep();
   };
-  const help = new HelpPanel(enterTutorial);
+  const help = new HelpPanel(
+    enterTutorial,
+    (z) => game.setCamZoom(z),
+    game.cameraZoom,
+  );
 
   // ---- 击球反馈：声音 + 镜头冲击 + 球闪 ----
   let shuttleFlash = 0;

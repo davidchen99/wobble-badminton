@@ -26,13 +26,17 @@ const SECTIONS: HelpSection[] = [
 
 /**
  * 帮助层：左上角 ? 按钮 / H / F1 呼出。
- * 含两种模式操作说明、动作简图小动画、重进新手引导入口。
+ * 含两种模式操作说明、动作简图小动画、镜头远近自定义、重进新手引导入口。
  */
 export class HelpPanel {
   private overlay: HTMLElement;
   private stopSketches: (() => void)[] = [];
 
-  constructor(onRestartTutorial: () => void) {
+  constructor(
+    onRestartTutorial: () => void,
+    onCamZoom: (zoom: number) => void,
+    initialCamZoom: number,
+  ) {
     this.overlay = mustGet('help-overlay');
 
     const sections = mustGet('help-sections');
@@ -59,6 +63,38 @@ export class HelpPanel {
       card.appendChild(ul);
       sections.appendChild(card);
     }
+
+    // 镜头远近滑杆（手机竖屏看不清底线时自定义，Game 内持久化）
+    const camCard = document.createElement('div');
+    camCard.className = 'help-card-section';
+    const camTitle = document.createElement('h3');
+    camTitle.textContent = '镜头';
+    camCard.appendChild(camTitle);
+    const camRow = document.createElement('label');
+    camRow.className = 'help-camzoom';
+    const camLabel = document.createElement('span');
+    camLabel.textContent = '远近';
+    const camInput = document.createElement('input');
+    camInput.type = 'range';
+    camInput.min = '0.8';
+    camInput.max = '1.3';
+    camInput.step = '0.05';
+    camInput.value = String(initialCamZoom);
+    const camValue = document.createElement('span');
+    camValue.className = 'help-camzoom-value';
+    camValue.textContent = `${Math.round(initialCamZoom * 100)}%`;
+    camInput.addEventListener('input', () => {
+      const z = Number(camInput.value);
+      camValue.textContent = `${Math.round(z * 100)}%`;
+      onCamZoom(z);
+    });
+    camRow.append(camLabel, camInput, camValue);
+    camCard.appendChild(camRow);
+    const camTip = document.createElement('p');
+    camTip.className = 'help-camzoom-tip';
+    camTip.textContent = '看不清底线就把镜头拉远一点';
+    camCard.appendChild(camTip);
+    sections.appendChild(camCard);
 
     mustGet('help-btn').addEventListener('click', (e) => {
       e.stopPropagation();

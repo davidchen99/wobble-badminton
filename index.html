@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Wobble Badminton</title>
     <style>
       html, body {
@@ -511,6 +511,60 @@
       #tutorial-skip {
         font-size: 13px;
         opacity: 0.5;
+      }
+      /* M14 竖屏/小屏：HUD 与卡片整体缩小，避免遮挡画面 */
+      @media (max-width: 640px) {
+        #hud-score {
+          font-size: 26px;
+          top: 8px;
+        }
+        #hud-level {
+          top: 42px;
+          font-size: 12px;
+        }
+        #hud-progress {
+          top: 62px;
+        }
+        #hud-top {
+          left: 100px;
+          font-size: 11px;
+        }
+        #hud-title {
+          font-size: 13px;
+        }
+        #hud-message {
+          max-width: 86vw;
+          padding: 12px 16px;
+          font-size: 14px;
+        }
+        #tutorial-canvas {
+          width: min(300px, 68vw);
+          height: min(300px, 68vw);
+        }
+        #tutorial-prompt {
+          max-width: 88vw;
+          font-size: 17px;
+        }
+        #format-card {
+          padding: 20px 26px;
+        }
+        #format-card h2 {
+          font-size: 20px;
+        }
+        #format-quick {
+          padding: 12px 26px;
+          font-size: 17px;
+        }
+        #unlock-title {
+          font-size: 30px;
+        }
+        #action-overlay {
+          bottom: 18%;
+        }
+        #action-overlay button {
+          min-width: 200px;
+          font-size: 16px;
+        }
       }
     </style>
   </head>

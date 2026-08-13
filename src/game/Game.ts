@@ -33,9 +33,8 @@ export class Game {
       0.1,
       100,
     );
-    // 固定易读镜头：玩家侧后上方，俯视全场
-    this.camera.position.set(0, 6.2, 11.2);
-    this.camera.lookAt(0, 0.6, -1.2);
+    // 固定易读镜头：玩家侧后上方，俯视全场（竖屏自动拉远抬广角，见 applyFraming）
+    this.applyFraming(container.clientWidth / container.clientHeight);
 
     window.addEventListener('resize', this.onResize);
   }
@@ -91,13 +90,31 @@ export class Game {
     );
   }
 
+  /**
+   * 取景（M14）：横屏沿用经典身后视角；竖屏（aspect<1）拉远相机 + 抬 FOV，
+   * 保证场地两宽边完整可见。resize/旋屏时同步刷新，并复位震屏基准。
+   */
+  private applyFraming(aspect: number): void {
+    if (aspect < 1) {
+      const k = Math.min(1.6, 0.85 / aspect + 0.55);
+      this.camera.position.set(0, 6.2 * k, 11.2 * k);
+      this.camera.fov = Math.min(68, 50 + (1 - aspect) * 36);
+    } else {
+      this.camera.position.set(0, 6.2, 11.2);
+      this.camera.fov = 50;
+    }
+    this.camera.aspect = aspect;
+    this.camera.lookAt(0, 0.6, -1.2);
+    this.camera.updateProjectionMatrix();
+    this.cameraBase.copy(this.camera.position); // 震屏基准同步，避免旋屏后镜头回弹
+  }
+
   private onResize = (): void => {
     const parent = this.renderer.domElement.parentElement;
     if (!parent) return;
     const w = parent.clientWidth;
     const h = parent.clientHeight;
-    this.camera.aspect = w / h;
-    this.camera.updateProjectionMatrix();
+    this.applyFraming(w / h);
     this.renderer.setSize(w, h);
   };
 }

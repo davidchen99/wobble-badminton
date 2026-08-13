@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Wobble Badminton</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #1a1d23;
+        font-family: system-ui, "Segoe UI", "Microsoft YaHei", sans-serif;
+      }
+      #app {
+        position: fixed;
+        inset: 0;
+      }
+      #app canvas {
+        display: block;
+      }
+      #hud {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        color: #e8eaee;
+      }
+      #hud-top {
+        position: absolute;
+        top: 10px;
+        left: 106px; /* 给帮助/暂停两个圆按钮让位 */
+        font-size: 13px;
+        line-height: 1.6;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+      }
+      #hud-title {
+        font-weight: 700;
+        font-size: 15px;
+      }
+      #hud-hint {
+        font-size: 11px;
+        opacity: 0.55;
+      }
+      #hud-score {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 34px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+        letter-spacing: 2px;
+      }
+      /* 当前关卡（计分板下方，M10） */
+      #hud-level {
+        position: absolute;
+        top: 56px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 14px;
+        font-weight: 600;
+        opacity: 0.85;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+      }
+      /* 关卡进度条（M13）：计分板下方极简一排圆点，不抢视线 */
+      #hud-progress {
+        position: absolute;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        opacity: 0.9;
+      }
+      #hud-progress .pg-group {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      #hud-progress .pg-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.18);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+      }
+      #hud-progress .pg-dot.cleared {
+        background: #ffd54f;
+      }
+      #hud-progress .pg-dot.current {
+        background: #ffffff;
+        box-shadow: 0 0 7px #ffffff;
+      }
+      #hud-progress .pg-dot.locked {
+        background: rgba(0, 0, 0, 0.55);
+      }
+      #hud-progress .pg-sep {
+        width: 1px;
+        height: 12px;
+        background: rgba(255, 255, 255, 0.25);
+      }
+      #hud-progress .pg-lock {
+        font-size: 10px;
+        line-height: 1;
+      }
+      #hud-message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        max-width: 520px;
+        padding: 16px 22px;
+        border-radius: 10px;
+        background: rgba(20, 22, 28, 0.85);
+        font-size: 15px;
+        line-height: 1.7;
+        text-align: center;
+        white-space: pre-line;
+      }
+      #hud-message.error {
+        background: rgba(90, 24, 24, 0.9);
+      }
+      #hud-message[hidden] {
+        display: none;
+      }
+      /* 摄像头预览（右下角，容器 CSS 镜像显示，与翻转后的追踪数据对齐；点击放大） */
+      #cam-preview {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        width: 320px;
+        height: 240px;
+        transform: scaleX(-1);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #000;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        pointer-events: auto;
+        cursor: pointer;
+        transition: width 0.15s, height 0.15s;
+        touch-action: none; /* M14：触控拖动预览时不滚屏/不缩放手势 */
+      }
+      #cam-preview.large {
+        width: 480px;
+        height: 360px;
+      }
+      /* M14 触屏默认小窗（点按可展开大窗） */
+      #cam-preview.small {
+        width: 108px;
+        height: 81px;
+      }
+      #cam-preview video,
+      #cam-overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      #debug-panel {
+        position: absolute;
+        left: 12px;
+        bottom: 12px;
+        width: 250px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(20, 22, 28, 0.8);
+        font-size: 12px;
+        pointer-events: auto;
+      }
+      #debug-stats {
+        margin: 0 0 8px;
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 11px;
+        line-height: 1.6;
+        white-space: pre;
+      }
+      .debug-slider {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 4px 0;
+      }
+      .debug-slider span:first-child {
+        flex: 0 0 84px;
+      }
+      .debug-slider input {
+        flex: 1;
+        min-width: 0;
+      }
+      .debug-slider-value {
+        flex: 0 0 32px;
+        text-align: right;
+        font-family: ui-monospace, Consolas, monospace;
+      }
+      /* 帮助按钮（左上角常驻） */
+      #help-btn {
+        position: absolute;
+        top: 10px;
+        left: 12px;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        border: 2px solid rgba(232, 234, 238, 0.7);
+        background: rgba(20, 22, 28, 0.75);
+        color: #e8eaee;
+        font-size: 20px;
+        font-weight: 700;
+        cursor: pointer;
+        pointer-events: auto;
+      }
+      #help-btn:hover {
+        background: rgba(60, 64, 74, 0.9);
+      }
+      /* 暂停按钮（M14：左上，帮助右侧；手机没有空格键） */
+      #pause-btn {
+        position: absolute;
+        top: 10px;
+        left: 58px;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        border: 2px solid rgba(232, 234, 238, 0.7);
+        background: rgba(20, 22, 28, 0.75);
+        color: #e8eaee;
+        font-size: 16px;
+        cursor: pointer;
+        pointer-events: auto;
+      }
+      #pause-btn:hover {
+        background: rgba(60, 64, 74, 0.9);
+      }
+      /* 大按钮操作层（M14：结算/晋级/暂停的可点按钮，手机替代 R/C/空格，电脑同用鼠标） */
+      #action-overlay {
+        position: absolute;
+        left: 50%;
+        bottom: 14%;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        pointer-events: auto;
+      }
+      #action-overlay[hidden] {
+        display: none;
+      }
+      #action-overlay button {
+        min-width: 230px;
+        padding: 14px 26px;
+        border: none;
+        border-radius: 12px;
+        font-size: 18px;
+        font-weight: 700;
+        cursor: pointer;
+        background: #3a7d44;
+        color: #fff;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      }
+      #action-overlay button:hover {
+        background: #4e8f52;
+      }
+      #action-overlay button.secondary {
+        min-width: 170px;
+        padding: 10px 22px;
+        border: 1px solid rgba(232, 234, 238, 0.4);
+        background: rgba(20, 22, 28, 0.85);
+        font-size: 15px;
+        font-weight: 500;
+      }
+      /* 触屏设备（M14）：隐藏键盘专属提示与模式行（手机锁空手模式） */
+      body.touch #hud-hint,
+      body.touch #hud-mode {
+        display: none;
+      }
+      /* 帮助层 */
+      #help-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(10, 12, 16, 0.72);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: auto;
+      }
+      #help-overlay[hidden] {
+        display: none;
+      }
+      #help-card {
+        max-width: 720px;
+        max-height: 86vh;
+        overflow-y: auto;
+        padding: 22px 28px;
+        border-radius: 12px;
+        background: rgba(24, 27, 34, 0.97);
+        box-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
+      }
+      #help-card h2 {
+        margin: 0 0 14px;
+        font-size: 20px;
+      }
+      #help-sections {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .help-card-section {
+        flex: 1 1 180px;
+        min-width: 170px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .help-card-section h3 {
+        margin: 0 0 8px;
+        font-size: 14px;
+        color: #ffd23f;
+      }
+      .help-card-section ul {
+        margin: 8px 0 0;
+        padding-left: 18px;
+        font-size: 13px;
+        line-height: 1.9;
+      }
+      .help-sketch {
+        display: block;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+      }
+      .help-camzoom {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+      }
+      .help-camzoom input[type='range'] {
+        flex: 1;
+        min-width: 0;
+        accent-color: #ffd23f;
+      }
+      .help-camzoom-value {
+        min-width: 44px;
+        text-align: right;
+        color: #ffd23f;
+        font-variant-numeric: tabular-nums;
+      }
+      .help-camzoom-tip {
+        margin: 8px 0 0;
+        font-size: 12px;
+        opacity: 0.65;
+      }
+      .help-actions {
+        margin-top: 18px;
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+      }
+      .help-actions button {
+        padding: 9px 18px;
+        border-radius: 8px;
+        border: none;
+        font-size: 14px;
+        cursor: pointer;
+        background: #3a7d44;
+        color: #fff;
+      }
+      .help-actions button:hover {
+        background: #4e8f52;
+      }
+      .help-actions button#help-close {
+        background: #455a64;
+      }
+      /* 赛制选择层（开局：6 分快局默认 + 右上角 21 分标准赛入口） */
+      #format-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(10, 12, 16, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: auto;
+      }
+      #format-overlay[hidden] {
+        display: none;
+      }
+      #format-card {
+        text-align: center;
+        padding: 28px 44px;
+        border-radius: 14px;
+        background: rgba(24, 27, 34, 0.95);
+        box-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
+      }
+      #format-card h2 {
+        margin: 0 0 18px;
+        font-size: 24px;
+      }
+      #format-quick {
+        padding: 14px 34px;
+        border: none;
+        border-radius: 10px;
+        font-size: 20px;
+        font-weight: 700;
+        cursor: pointer;
+        background: #3a7d44;
+        color: #fff;
+      }
+      #format-quick:hover {
+        background: #4e8f52;
+      }
+      #format-tip {
+        margin-top: 12px;
+        font-size: 12px;
+        opacity: 0.6;
+      }
+      #format-standard {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        padding: 8px 16px;
+        border: 1px solid rgba(232, 234, 238, 0.4);
+        border-radius: 8px;
+        background: rgba(20, 22, 28, 0.8);
+        color: #e8eaee;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      #format-standard:hover {
+        background: rgba(60, 64, 74, 0.9);
+      }
+      /* 难度轨切换按钮（M11：专业轨解锁后才出现） */
+      #format-track {
+        margin-top: 14px;
+        padding: 8px 18px;
+        border: 1px solid rgba(192, 132, 252, 0.6);
+        border-radius: 8px;
+        background: rgba(88, 28, 135, 0.35);
+        color: #e9d5ff;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      #format-track:hover {
+        background: rgba(88, 28, 135, 0.55);
+      }
+      /* 专业轨解锁登场动画层（M11） */
+      #unlock-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(10, 6, 18, 0.72);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: auto;
+      }
+      #unlock-overlay[hidden] {
+        display: none;
+      }
+      #unlock-card {
+        text-align: center;
+      }
+      #unlock-title {
+        font-size: 44px;
+        font-weight: 800;
+        color: #c084fc;
+        text-shadow: 0 0 18px #a855f7, 0 0 46px #7c3aed;
+        animation: unlockPulse 0.9s ease-in-out infinite alternate;
+      }
+      #unlock-sub {
+        margin-top: 14px;
+        font-size: 18px;
+        color: #e9d5ff;
+      }
+      #unlock-tip {
+        margin-top: 30px;
+        font-size: 13px;
+        opacity: 0.6;
+      }
+      @keyframes unlockPulse {
+        from {
+          transform: scale(1);
+        }
+        to {
+          transform: scale(1.07);
+        }
+      }
+      /* 新手引导层（M9：整块黑色遮罩 + 大号简图动画 + 步骤圆点） */
+      #tutorial-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(4, 5, 8, 0.94);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 26px;
+        pointer-events: auto;
+      }
+      #tutorial-overlay[hidden] {
+        display: none;
+      }
+      #tutorial-canvas {
+        width: 300px;
+        height: 300px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.07);
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.7);
+      }
+      #tutorial-prompt {
+        max-width: 560px;
+        font-size: 22px;
+        line-height: 1.8;
+        text-align: center;
+        white-space: pre-line;
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+      }
+      #tutorial-dots {
+        display: flex;
+        gap: 10px;
+      }
+      #tutorial-dots span {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(232, 234, 238, 0.25);
+      }
+      #tutorial-dots span.active {
+        background: #ffd23f;
+      }
+      #tutorial-skip {
+        font-size: 13px;
+        opacity: 0.5;
+      }
+      /* M14 竖屏/小屏：HUD 与卡片整体缩小，避免遮挡画面 */
+      @media (max-width: 640px) {
+        #hud-title {
+          display: none; /* 小屏藏标题，给计分板让位（实测会撞车） */
+        }
+        #hud-score {
+          font-size: 26px;
+          top: 8px;
+        }
+        #hud-level {
+          top: 42px;
+          font-size: 12px;
+        }
+        #hud-progress {
+          top: 62px;
+        }
+        #hud-top {
+          left: 100px;
+          font-size: 11px;
+        }
+        #hud-title {
+          font-size: 13px;
+        }
+        #hud-message {
+          max-width: 86vw;
+          padding: 12px 16px;
+          font-size: 14px;
+        }
+        #tutorial-canvas {
+          width: min(300px, 68vw);
+          height: min(300px, 68vw);
+        }
+        #tutorial-prompt {
+          max-width: 88vw;
+          font-size: 17px;
+        }
+        #format-card {
+          padding: 20px 26px;
+        }
+        #format-card h2 {
+          font-size: 20px;
+        }
+        #format-quick {
+          padding: 12px 26px;
+          font-size: 17px;
+        }
+        #unlock-title {
+          font-size: 30px;
+        }
+        #action-overlay {
+          bottom: 18%;
+        }
+        #action-overlay button {
+          min-width: 200px;
+          font-size: 16px;
+        }
+      }
+    </style>
+    <script type="module" crossorigin src="./assets/index-BK2PwYqv.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="hud">
+      <div id="hud-top">
+        <div id="hud-title">Wobble Badminton</div>
+        <div id="hud-fps">FPS: --</div>
+        <div id="hud-mode">模式：空手</div>
+        <div id="hud-hint">M 切模式 · ` 调试 · 点预览图放大</div>
+      </div>
+      <div id="hud-score">0 : 0</div>
+      <div id="hud-level">第 1 关 · 黑帽新手</div>
+      <div id="hud-progress"></div>
+      <div id="hud-message" hidden></div>
+      <div id="debug-panel" hidden>
+        <pre id="debug-stats"></pre>
+        <div id="debug-controls"></div>
+      </div>
+      <div id="tutorial-overlay" hidden>
+        <canvas id="tutorial-canvas" width="300" height="300"></canvas>
+        <div id="tutorial-prompt"></div>
+        <div id="tutorial-dots"><span></span><span></span><span></span><span></span></div>
+        <div id="tutorial-skip">空格 / 点击 跳过引导</div>
+      </div>
+      <div id="cam-preview" title="点击放大/缩小">
+        <canvas id="cam-overlay" width="480" height="360"></canvas>
+      </div>
+      <button id="help-btn" title="帮助 (H)">?</button>
+      <button id="pause-btn" title="暂停 / 继续">⏸</button>
+      <div id="action-overlay" hidden>
+        <button id="action-primary"></button>
+        <button id="action-secondary" class="secondary"></button>
+      </div>
+      <div id="help-overlay" hidden>
+        <div id="help-card">
+          <h2>怎么玩 Wobble Badminton</h2>
+          <div id="help-sections"></div>
+          <div class="help-actions">
+            <button id="help-tutorial">重新进入新手引导</button>
+            <button id="help-close">关闭 (H)</button>
+          </div>
+        </div>
+      </div>
+      <div id="format-overlay" hidden>
+        <div id="format-card">
+          <h2>Wobble Badminton</h2>
+          <button id="format-quick">开打 · 6 分快局</button>
+          <div id="format-tip">空格 / 点击画面 = 6 分快局（默认）</div>
+          <button id="format-track" hidden>轨道：新手</button>
+        </div>
+        <button id="format-standard" title="标准赛 21 分">标准赛 · 21 分</button>
+      </div>
+      <div id="unlock-overlay" hidden>
+        <div id="unlock-card">
+          <div id="unlock-title">⚡ 专业玩家解锁 ⚡</div>
+          <div id="unlock-sub">紫影 · 紫电 · 魔王 在球场等你</div>
+          <div id="unlock-tip">空格 / 点击 继续</div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
